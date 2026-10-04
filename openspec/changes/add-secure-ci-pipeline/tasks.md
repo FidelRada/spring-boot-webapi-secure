@@ -139,3 +139,13 @@
   - gate exit 1, con 80 bloqueantes: Semgrep 7, SpotBugs 3, Trivy 23 y DC 47.
   - DC local en `BUILD FAILURE` con CVE-2022-42889 (9.8).
   - La primera descarga de la NVD tardó 3 min 13 s.
+
+## Notas de la auditoría de ejecución (fase 4, 2026-10-04)
+
+- `ac51ff1` `fix(ci)`:
+  - `security-scans.yml` ya no tiene `permissions` a nivel de workflow. En un reutilizable, ese nivel se aplica a todo job sin bloque propio, así que el job `imagen` quedaba con solo `contents: read`: el push a GHCR y la subida del SARIF de la imagen habrían fallado. CIW-11 y design.md D1 están actualizados.
+  - `defaults.run.shell: bash` (`-o pipefail`) para que `semgrep … | tee` no oculte un fallo técnico.
+  - Caché diaria de Trivy (`actions/cache`) en los jobs SBOM e imagen, Trivy sin root (`--user`, `--cache-dir`). La imagen se escanea desde un tar (`docker save` + `--input`), sin el socket de Docker.
+  - Nombre de la imagen GHCR en minúsculas (`${GITHUB_REPOSITORY,,}`).
+- `e437c2d` `fix(gate)`: los `::error::` y el Step Summary escapan los datos de los reportes (sin inyección de comandos de workflow ni de Markdown). +4 pruebas: 31 en total.
+- Tarea 8.5: verificar también que la caché `trivy-db-*` se restaura en la segunda ejecución. En 8.6, verificar que la imagen se publica como `ghcr.io/fidelrada/spring-boot-webapi-secure`.
