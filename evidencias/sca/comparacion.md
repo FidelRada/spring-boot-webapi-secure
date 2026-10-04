@@ -9,7 +9,7 @@ se completan en la fase 6 (E2E); hasta entonces figuran como *pendiente fase 6*.
 - Grupo: 10 (Andrés Fidel Rada)
 - Repositorio: https://github.com/FidelRada/spring-boot-webapi-secure (fork de `pablovillazon/spring-boot-webapi-secure`)
 - Commit anterior: `1a9980a` — `ci: pipeline seguro con SAST/SCA y quality gate que lee reportes (ROJO)`
-- Commit posterior: commit `fix(deps): commons-text 1.10.0 y CVE transitivos` de la rama `feature/lab3-ci-seguro` (SHA en `git log --grep 'fix(deps)'`)
+- Commit posterior: `93ae916` — `fix(deps): commons-text 1.10.0 y CVE transitivos` (HEAD de la remediación en `feature/lab3-ci-seguro`)
 - Ejecución anterior: pendiente fase 6 (run de CI del commit ROJO)
 - Ejecución posterior: pendiente fase 6 (run de CI tras la remediación)
 - Pull request: pendiente fase 6 (PR #1 `feature/lab3-ci-seguro` → `develop`)

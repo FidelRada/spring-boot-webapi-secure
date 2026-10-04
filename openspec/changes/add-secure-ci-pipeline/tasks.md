@@ -90,7 +90,7 @@
 
 ## 6. Escaneo local "antes" (fuera del repo, carpeta del lab)
 
-- [ ] 6.1 Crear `herramientas/escaneo_local.sh <antes|despues>`. Debe ejecutar:
+- [x] 6.1 Crear `herramientas/escaneo_local.sh <antes|despues>`. Debe ejecutar:
   - `mvn dependency:tree -DoutputFile` (SCA-10).
   - Semgrep (Docker 1.179.0, `--metrics=off`).
   - Dependency-Check (Maven + `NVD_API_KEY` + `DO_NOT_TRACK=true`, **sin** override del umbral).
@@ -99,7 +99,7 @@
   - El gate.
 
   Todo se guarda en `evidencias/locales/<fase>/`.
-- [ ] 6.2 Ejecutar `escaneo_local.sh antes` sobre el commit ROJO y verificar:
+- [x] 6.2 Ejecutar `escaneo_local.sh antes` sobre el commit ROJO y verificar:
   - SQLi en Semgrep (SAST-01, SAST-06).
   - CVE-2022-42889 en Trivy y en DC (SCA-02, SCA-06).
   - DC local en `BUILD FAILURE` con `failBuildOnCVSS=7` (SCA-12).
@@ -109,12 +109,12 @@
 
 ## 7. Commit ROJO (local, sin push)
 
-- [ ] 7.1 Hacer el commit en `feature/lab3-ci-seguro` con el mensaje `ci: pipeline seguro con SAST, SCA y quality gate (commit ROJO)`. Verificar:
+- [x] 7.1 Hacer el commit en `feature/lab3-ci-seguro` con el mensaje `ci: pipeline seguro con SAST, SCA y quality gate (commit ROJO)`. Verificar:
   - `git diff --stat main -- src/` vacío.
   - `mvn -B clean verify` en verde (CIW-14).
   - `git grep -n 0502[8]C6D HEAD` sin resultados (SCA-04).
   - Autor del commit: `git config user.name` = `FideRada` (nombre global existente; no se cambia).
-- [ ] 7.2 Ejecutar `openspec validate add-secure-ci-pipeline --strict` y marcar las tareas completadas
+- [x] 7.2 Ejecutar `openspec validate add-secure-ci-pipeline --strict` y marcar las tareas completadas
 
 ## 8. [E2E] GitHub (fase 6; requiere push y configuración remota)
 
@@ -129,3 +129,13 @@
 - [ ] 8.5 [E2E] Verificar las alertas de Code scanning (SAST-05), el artifact de DC (SCA-03) y la caché de DC en la segunda ejecución (SCA-07)
 - [ ] 8.6 [E2E] Después de los merges del change 2: CI/CD de `develop` y `main` (CIW-03, CD-05, CD-06), nightly con `gh workflow enable` + `gh workflow run ci-sec-nightly.yml --ref main` (CIW-04, CD-07), Dependabot en la rama predeterminada (SCA-09) y PR #3 de regresión (BP-05)
 - [ ] 8.7 [E2E] Ejecutar `gh run download` de cada run citado a `evidencias/pipeline/<runId>_<workflow>/` antes de que expire (7 días) y registrarlo en `evidencias/indice_evidencias.md` y `referencia_pipeline.md` (CIW-15)
+
+## Notas de aplicación (fase 3, 2026-10-04)
+
+- Commit ROJO: `1a9980a`. El mensaje sigue la instrucción del orquestador: `ci: pipeline seguro con SAST/SCA y quality gate que lee reportes (ROJO)`.
+- `git grep -n 0502[8]C6D`: el patrón se escribe con `[8]` para que los artefactos que documentan la búsqueda no coincidan consigo mismos. La clave completa no aparece en el árbol.
+- Job `imagen` del reutilizable: no declara `permissions`. Un job anidado no puede pedir más de lo que concede el caller, y GitHub lo valida al cargar el workflow; se documenta en design.md D1 y CIW-11.
+- Escaneo "antes" (`evidencias/locales/antes/`):
+  - gate exit 1, con 80 bloqueantes: Semgrep 7, SpotBugs 3, Trivy 23 y DC 47.
+  - DC local en `BUILD FAILURE` con CVE-2022-42889 (9.8).
+  - La primera descarga de la NVD tardó 3 min 13 s.
