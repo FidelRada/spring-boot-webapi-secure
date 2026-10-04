@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.14</version>
+        <version>3.5.16</version>
         <relativePath/>
     </parent>
 
@@ -19,6 +19,18 @@
 
     <properties>
         <java.version>21</java.version>
+        <!-- Versiones gestionadas por el parent que se suben para corregir CVE transitivos
+             HIGH/CRITICAL (design.md D7 del change remediate-app-vulnerabilities).
+             El parent 3.5.16 trae tomcat 10.1.55 y jackson 2.21.4, todavía vulnerables. -->
+        <tomcat.version>10.1.60</tomcat.version>
+        <jackson-bom.version>2.21.7</jackson-bom.version>
+        <!-- log4j-api 2.24.3 (Boot 3.5.16): CVE-2026-34479 (CVSS v3 7.5), corregido en 2.25.4. -->
+        <log4j2.version>2.25.5</log4j2.version>
+        <!-- Umbral CVSS de OWASP Dependency-Check. Se expone como propiedad para que
+             en el pipeline pueda pasarse -Ddc.failBuildOnCVSS=11 (el plugin no aborta y
+             escribe siempre los reportes; el Quality Gate aplica el umbral 7.0).
+             En local, sin override, el build falla con CVSS >= 7. -->
+        <dc.failBuildOnCVSS>7</dc.failBuildOnCVSS>
     </properties>
 
     <dependencies>
@@ -44,11 +56,19 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Dependencia desactualizada agregada solo para el laboratorio SCA. -->
+        <!-- Caso didáctico SCA (guía 02): 1.9 tenía CVE-2022-42889 (Text4Shell, CRITICAL);
+             1.10.0 es la primera versión corregida. -->
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-text</artifactId>
-            <version>1.9</version>
+            <version>1.10.0</version>
+        </dependency>
+
+        <!-- Codificación de salida HTML (OWASP Java Encoder) contra XSS reflejado. -->
+        <dependency>
+            <groupId>org.owasp.encoder</groupId>
+            <artifactId>encoder</artifactId>
+            <version>1.5.0</version>
         </dependency>
 
         <dependency>
@@ -84,21 +104,47 @@
                     </execution>
                 </executions>
             </plugin>
-            <!-- OWASP Dependency-Check -->
+            <!-- OWASP Dependency-Check: la clave de la NVD se lee de la variable de entorno
+                 NVD_API_KEY (secreto de GitHub Actions/Dependabot o variable local); nunca
+                 se escribe en este archivo. -->
             <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>dependency-check-maven</artifactId>
-                <version>11.1.1</version>
+                <version>13.0.0</version>
                 <configuration>
-                    <failBuildOnCVSS>7</failBuildOnCVSS>
-                    <nvdApiKey>05028C6D-2870-4358-A719-5424DDA781B3</nvdApiKey>
+                    <failBuildOnCVSS>${dc.failBuildOnCVSS}</failBuildOnCVSS>
+                    <nvdApiKeyEnvironmentVariable>NVD_API_KEY</nvdApiKeyEnvironmentVariable>
+                    <dataDirectory>${user.home}/.cache/dependency-check-data</dataDirectory>
+                    <formats>
+                        <format>HTML</format>
+                        <format>JSON</format>
+                        <format>SARIF</format>
+                    </formats>
+                    <suppressionFiles>
+                        <suppressionFile>${project.basedir}/dependency-check-suppressions.xml</suppressionFile>
+                    </suppressionFiles>
+                    <!-- OSS Index migró a Sonatype Guide y exige credenciales; la fuente es la NVD. -->
+                    <ossIndexAnalyzerEnabled>false</ossIndexAnalyzerEnabled>
                 </configuration>
             </plugin>
-            <!-- SpotBugs -->
+            <!-- SpotBugs + FindSecBugs (4.9.8.5: 4.10.x exige Maven >= 3.8.9) -->
             <plugin>
                 <groupId>com.github.spotbugs</groupId>
                 <artifactId>spotbugs-maven-plugin</artifactId>
-                <version>4.8.6.2</version>
+                <version>4.9.8.5</version>
+                <configuration>
+                    <effort>Max</effort>
+                    <threshold>Low</threshold>
+                    <xmlOutput>true</xmlOutput>
+                    <htmlOutput>true</htmlOutput>
+                    <plugins>
+                        <plugin>
+                            <groupId>com.h3xstream.findsecbugs</groupId>
+                            <artifactId>findsecbugs-plugin</artifactId>
+                            <version>1.14.0</version>
+                        </plugin>
+                    </plugins>
+                </configuration>
             </plugin>
             <!-- CycloneDX BOM Generator -->
             <plugin>

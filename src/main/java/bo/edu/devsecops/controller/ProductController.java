@@ -13,6 +13,10 @@ import java.util.Map;
 @RequestMapping("/api/products")
 public class ProductController {
 
+    /** Consulta fija: el texto del usuario solo viaja como parámetro enlazado (APP-01..APP-03). */
+    private static final String CONSULTA_BUSQUEDA =
+            "SELECT id, name, price FROM products WHERE name LIKE ? ESCAPE '\\'";
+
     private final JdbcTemplate jdbcTemplate;
 
     public ProductController(JdbcTemplate jdbcTemplate) {
@@ -21,7 +25,12 @@ public class ProductController {
 
     @GetMapping("/search")
     public List<Map<String, Object>> search(@RequestParam(defaultValue = "") String name) {
-        String sql = "SELECT id, name, price FROM products WHERE name LIKE '%" + name + "%'";
-        return jdbcTemplate.queryForList(sql);
+        String literal = escaparComodines(name);
+        return jdbcTemplate.queryForList(CONSULTA_BUSQUEDA, "%" + literal + "%");
+    }
+
+    /** Los comodines de LIKE escritos por el usuario se tratan como caracteres literales. */
+    private static String escaparComodines(String texto) {
+        return texto.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 }
