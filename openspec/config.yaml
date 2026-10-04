@@ -8,7 +8,7 @@ context: |
   ## Proyecto
   Fork académico (FidelRada/spring-boot-webapi-secure, upstream pablovillazon/spring-boot-webapi-secure)
   usado en el Laboratorio 3 "CI Seguro con SAST y SCA" del Módulo 5 (DevSecOps) del diplomado
-  UAGRM – FICCT. Grupo 10. Cierre de la entrega: miércoles 7/10/2026 00:00 (America/La_Paz).
+  UAGRM – FICCT. Trabajo individual de Andrés Fidel Rada Rojas. Cierre de la entrega: miércoles 7/10/2026 00:00 (America/La_Paz).
 
   ## Stack
   - Spring Boot 3.5.14 (spring-boot-starter-parent), Java 21, Maven (sin Maven Wrapper).

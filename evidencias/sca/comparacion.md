@@ -6,7 +6,7 @@ se completaron en la fase 6 (E2E en GitHub, 2026-10-04).
 
 ## Identificación
 
-- Grupo: 10 (Andrés Fidel Rada)
+- Autor: Andrés Fidel Rada Rojas (trabajo individual)
 - Repositorio: https://github.com/FidelRada/spring-boot-webapi-secure (fork de `pablovillazon/spring-boot-webapi-secure`)
 - Commit anterior: `8acb79d` (ROJO_FINAL publicado: pipeline `1a9980a` + fix de auditoría `442fd98`/`8acb79d`, mismo `src/` y `pom.xml` que `1a9980a`)
 - Commit posterior: `cc5f4cc` (HEAD de `feature/lab3-ci-seguro`; la corrección SCA es `c0fe5cf` — `fix(deps): commons-text 1.10.0 y CVE transitivos`)
