@@ -17,7 +17,7 @@ public class CommentController {
     @PostMapping(value = "/preview", produces = MediaType.TEXT_HTML_VALUE)
     public ResponseEntity<String> preview(@RequestBody Map<String, String> body) {
         String comentario = body.getOrDefault("comment", "");
-        // Todo el contenido del usuario se codifica para HTML antes de incluirlo (APP-04).
+        // Todo el contenido del usuario se codifica para HTML antes de incluirlo.
         String seguro = Encode.forHtml(comentario);
         String html = "<html><body><h2>Vista previa</h2><p>" + seguro + "</p></body></html>";
         return ResponseEntity.ok(html);

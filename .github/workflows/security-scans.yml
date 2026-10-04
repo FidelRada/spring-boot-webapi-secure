@@ -1,4 +1,4 @@
-# Batería de seguridad reutilizable (change add-secure-ci-pipeline, design.md D1–D5).
+# Batería de seguridad reutilizable: SAST, SCA, SBOM, imagen y Quality Gate.
 # La invocan ci-sec.yml, ci-cd-sec.yml y ci-sec-nightly.yml. Los escáneres solo fallan por
 # errores técnicos; la decisión por hallazgos la toma exclusivamente el job "Quality Gate",
 # que LEE los reportes (quality_gate.py) y es fail-closed.
@@ -24,8 +24,8 @@ on:
         description: Clave de la API de la NVD para Dependency-Check
         required: false
 
-# Sin bloque "permissions" a nivel de workflow A PROPÓSITO (hallazgo A-01 de la auditoría de
-# ejecución): en un reutilizable, el nivel de workflow se aplica a todo job que no declare el
+# Sin bloque "permissions" a nivel de workflow A PROPÓSITO: en un
+# reutilizable, el nivel de workflow se aplica a todo job que no declare el
 # suyo, así que "contents: read" aquí dejaba al job "imagen" sin packages/security-events y
 # rompía el push a GHCR y la subida del SARIF. Cada job declara sus permisos mínimos salvo
 # "imagen", que hereda exactamente lo que concede el job caller (packages: write solo desde
@@ -84,7 +84,7 @@ jobs:
       - name: Obtener código
         uses: actions/checkout@v7
 
-      # --metrics=off con rulesets explícitos: --config auto exige métricas (design.md D2).
+      # --metrics=off con rulesets explícitos: --config auto exige métricas.
       # Sin --error: Semgrep termina en 0 con hallazgos y en >= 2 solo ante errores técnicos.
       - name: Ejecutar Semgrep
         run: |
@@ -301,7 +301,7 @@ jobs:
 
       # -Ddc.failBuildOnCVSS=11: el plugin no aborta por hallazgos y escribe siempre los
       # reportes completos; el umbral efectivo (CVSS >= 7.0) lo aplica el Quality Gate
-      # (design.md D2, spec SCA-08). No es un umbral relajado: el gate bloquea igual.
+      # (CVSS >= 7.0). No es un umbral relajado: el gate bloquea igual.
       - name: Ejecutar OWASP Dependency-Check 13.0.0
         run: mvn -B org.owasp:dependency-check-maven:check -Ddc.failBuildOnCVSS=11
 
@@ -425,7 +425,7 @@ jobs:
           restore-keys: |
             trivy-db-${{ runner.os }}-
 
-      # Dos pasadas (design.md D5): SO con --ignore-unfixed (única excepción aprobada, CD-08)
+      # Dos pasadas: SO con --ignore-unfixed (única excepción aprobada: paquetes del SO sin corrección)
       # y librerías de la app sin filtro. Además, SARIF completo sin filtros.
       # La imagen se exporta a un tar y Trivy la lee con --input: no necesita el socket de
       # Docker y corre con el usuario del runner (caché legible por actions/cache).

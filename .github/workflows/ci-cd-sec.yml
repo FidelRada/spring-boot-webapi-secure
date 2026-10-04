@@ -1,4 +1,4 @@
-# CI/CD de las ramas de integración (spec CIW-03, CD-04..CD-06): misma batería con
+# CI/CD de las ramas de integración (main y develop): misma batería con
 # Dependency-Check y, si el Quality Gate aprueba, imagen escaneada. Solo main publica en GHCR.
 name: CI/CD - Spring Boot DevSecOps
 
