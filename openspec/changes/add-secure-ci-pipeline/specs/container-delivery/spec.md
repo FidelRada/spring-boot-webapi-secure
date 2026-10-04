@@ -28,11 +28,15 @@ La imagen SHALL declarar un `HEALTHCHECK` contra `/actuator/health` usando `wget
 - **THEN** `docker inspect --format '{{.State.Health.Status}}'` devuelve `healthy`
 
 ### Requirement: Escaneo de la imagen antes de publicar
-El job de imagen SHALL escanear la imagen con `docker run aquasec/trivy:0.74.0 image` (sin la acción inexistente `trivy-action@0.36.0`), generar SARIF/JSON y MUST NOT publicar la imagen si hay vulnerabilidades HIGH o CRITICAL.
+El job de imagen SHALL escanear la imagen con `docker run aquasec/trivy:0.74.0 image` (sin la acción inexistente `trivy-action@0.36.0`) en dos pasadas: paquetes del SO (`--pkg-types os --ignore-unfixed`) y librerías de la aplicación (`--pkg-types library`, sin `--ignore-unfixed`). Además SHALL generar un SARIF completo sin filtros y MUST NOT publicar la imagen si alguna de las dos pasadas contiene vulnerabilidades HIGH o CRITICAL.
 
 #### Scenario: CD-04 Imagen vulnerable no se publica
-- **WHEN** el escaneo de la imagen detecta una vulnerabilidad HIGH o CRITICAL
+- **WHEN** el escaneo de librerías de la imagen, o el de paquetes del SO con corrección disponible, detecta una vulnerabilidad HIGH o CRITICAL
 - **THEN** el paso de evaluación falla, el paso de push no se ejecuta y el SARIF se sube igualmente a Code scanning
+
+#### Scenario: CD-08 CVE del SO sin corrección no bloquea pero queda visible
+- **WHEN** la imagen base contiene una CVE HIGH/CRITICAL de un paquete del SO sin `FixedVersion`
+- **THEN** no aparece en `trivy-imagen-os.json` (filtrada por `--ignore-unfixed`), no bloquea, sí figura en el SARIF completo subido a Code scanning, y la política está documentada en design.md D5
 
 ### Requirement: Publicación solo desde main tras el gate
 La publicación en `ghcr.io/fidelrada/spring-boot-webapi-secure` SHALL ocurrir únicamente en push a `main`, después de que el Quality Gate del mismo run termine en `success`.

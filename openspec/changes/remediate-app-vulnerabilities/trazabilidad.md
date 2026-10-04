@@ -19,12 +19,12 @@ Tipos: **MockMvc** (`SecurityRemediationTests`), **curl** (`herramientas/e2e_cur
 | APP-11 | CSRF | `postSinTokenCsrfRecibe403` + curl sin token | MockMvc + curl | 200 → 403 | pendiente | pendiente |
 | APP-12 | CSRF | `postConTokenCsrfRecibe200` + curl con `/api/csrf` | MockMvc + curl | n/a → 200 | pendiente | pendiente |
 | APP-13 | Login | `loginValidoNoDevuelveSecreto` | MockMvc + curl | `token: devsecops-lab-secret…` → sin `token` | pendiente | pendiente |
-| APP-14 | Login | `passwordHardcodeadaYaNoFunciona` | MockMvc + curl | 200 → 401 | pendiente | pendiente |
+| APP-14 | Login | `passwordHardcodeadaYaNoFunciona` (con token CSRF) | MockMvc + curl | 200 → 401 | pendiente | pendiente |
 | APP-15 | Logs | `logNoContienePasswordNiSaltos` (OutputCapture) | MockMvc | password en log → ausente | pendiente | pendiente |
 | APP-16 | Secretos | `git grep` + Semgrep `p/secrets`/`lab-hardcoded-secret` | local | hallazgos → 0 | pendiente | pendiente |
 | APP-17 | Configuración | `actuatorSoloExponeHealth` + curl `/actuator/env` | MockMvc + curl | env visible → 401/404; health UP | pendiente | pendiente |
 | APP-18 | Configuración | `consolaH2Deshabilitada` + curl `/h2-console` | MockMvc + curl | consola → 401/404 | pendiente | pendiente |
-| APP-19 | Configuración | `erroresSinStacktrace` | MockMvc + curl | `trace` presente → ausente | pendiente | pendiente |
+| APP-19 | Configuración | `erroresSinStacktrace` (`RANDOM_PORT` + `TestRestTemplate`) + curl | SpringBootTest + curl | `trace` presente → ausente; código 404/400 (no 401) | pendiente | pendiente |
 | APP-20 | Dependencias | Trivy SBOM + DC local y en run | local + run | CVE-2022-42889 CRITICAL → ausente | pendiente | pendiente |
 | APP-21 | Dependencias | `quality_gate.py` sobre reportes SCA + revisión de supresiones | local + run | bloqueantes → 0; umbral 7.0 intacto | pendiente | pendiente |
 | APP-22 | Dependencias | Revisión de `evidencias/sca/comparacion.md` | revisión | Documento completo | pendiente | pendiente |

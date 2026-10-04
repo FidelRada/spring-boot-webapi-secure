@@ -10,7 +10,7 @@ Tipos de prueba: **unittest** (gate en Python), **local** (escaneo local con `he
 | CIW-02 | ci-workflows | Abrir PR #1 → `develop` | run | Run `pull_request` con job Dependency-Check | pendiente | pendiente |
 | CIW-03 | ci-workflows | Merge PR #1 y PR #2 | run | Runs CI/CD en `develop` y `main` | pendiente | pendiente |
 | CIW-04 | ci-workflows | `gh workflow run ci-sec-nightly.yml --ref main` | run | Run `workflow_dispatch` en success | pendiente | pendiente |
-| CIW-05 | ci-workflows | Inspección de `on.schedule` + actionlint | lint | Fragmento YAML + salida actionlint | pendiente | pendiente |
+| CIW-05 | ci-workflows | Inspección de `on.schedule` (`'55 20 * * *'` + `timezone: America/La_Paz`) + actionlint 1.7.12 | lint | Fragmento YAML + salida actionlint (prueba positiva/negativa de la auditoría en `evidencias/auditoria/`) | pendiente | pendiente |
 | CIW-06 | ci-workflows | `ls .github/workflows` + grep `uses: ./.github/workflows/security-scans.yml` | revisión | Listado de archivos | pendiente | pendiente |
 | CIW-07 | ci-workflows | `actionlint` en Docker | lint | `evidencias/locales/actionlint.txt` vacío, exit 0 | pendiente | pendiente |
 | CIW-08 | ci-workflows | grep de anulaciones | lint | Salida vacía | pendiente | pendiente |
@@ -19,10 +19,12 @@ Tipos de prueba: **unittest** (gate en Python), **local** (escaneo local con `he
 | CIW-11 | ci-workflows | Revisión de bloques `permissions` | revisión | Tabla de permisos en el informe | pendiente | pendiente |
 | CIW-12 | ci-workflows | `gh api .../commits/<sha>/check-runs` | api | `evidencias/pipeline/check-runs_<sha>.json` | pendiente | pendiente |
 | CIW-13 | ci-workflows | Dos push seguidos a la rama feature | run | Primer run `cancelled` | pendiente | pendiente |
+| CIW-14 | ci-workflows | `mvn -B clean verify` local sobre ROJO + job Build & Test | local + run | `evidencias/locales/antes/mvn_verify.txt` (BUILD SUCCESS, 2 tests) + job success | pendiente | pendiente |
+| CIW-15 | ci-workflows | `gh run download` de cada run citado | api | `evidencias/pipeline/<runId>_<wf>/` + `indice_evidencias.md` | pendiente | pendiente |
 | SAST-01 | sast-scanning | Semgrep sobre commit ROJO | local + run | `semgrep.sarif` con `lab-java-sql-concatenation` | pendiente | pendiente |
 | SAST-02 | sast-scanning | Inspección del comando Semgrep | revisión | Fragmento YAML/script con `--metrics=off` | pendiente | pendiente |
 | SAST-03 | sast-scanning | CodeQL en run de CI | run | `reporte-codeql/*.sarif` con `java/sql-injection` | pendiente | pendiente |
-| SAST-04 | sast-scanning | SpotBugs + FindSecBugs | local + run | `spotbugsXml.xml` con `SQL_INJECTION_SPRING_JDBC` | pendiente | pendiente |
+| SAST-04 | sast-scanning | SpotBugs 4.9.8.5 + FindSecBugs 1.14.0 | local + run | `spotbugsXml.xml` con `SQL_INJECTION_SPRING_JDBC` (p2) y `SPRING_CSRF_PROTECTION_DISABLED` (p1); ya observado en la auditoría | pendiente | pendiente |
 | SAST-05 | sast-scanning | `gh api .../code-scanning/alerts` | api | JSON de alertas + captura Security → Code scanning (manual) | pendiente | pendiente |
 | SAST-06 | sast-scanning | `escaneo_local.sh antes` | local | `evidencias/locales/antes/semgrep.*`, `spotbugsXml.xml` | pendiente | pendiente |
 | SAST-07 | sast-scanning | Run de CI ROJO | run | Escáneres success, gate failure | pendiente | pendiente |
@@ -35,10 +37,13 @@ Tipos de prueba: **unittest** (gate en Python), **local** (escaneo local con `he
 | SCA-07 | sca-scanning | Segunda ejecución DC | run | Log "Cache restored" + duración menor | pendiente | pendiente |
 | SCA-08 | sca-scanning | Revisión de umbrales | revisión | Fragmentos de pom/workflow/gate | pendiente | pendiente |
 | SCA-09 | sca-scanning | Dependabot en la rama predeterminada | api | Captura Insights → Dependabot / PR de Dependabot | pendiente | pendiente |
+| SCA-10 | sca-scanning | `mvn dependency:tree` (completo y `-Dincludes`) | local | `evidencias/locales/antes/dependency-tree.txt` + tabla directa/transitiva | pendiente | pendiente |
+| SCA-11 | sca-scanning | `gh api .../vulnerability-alerts` y `.../automated-security-fixes` | api | 204 / `enabled: true` + captura Settings → Code security (manual) | pendiente | pendiente |
+| SCA-12 | sca-scanning | DC local sin override sobre ROJO | local | `BUILD FAILURE` con `failBuildOnCVSS=7` + `dependency-check-report.html` | pendiente | pendiente |
 | QG-01 | quality-gate | `test_trivy_critical_bloquea`, `test_dc_critical_bloquea` + run ROJO | unittest + run | Exit 1; Step Summary con CVE-2022-42889 | pendiente | pendiente |
 | QG-02 | quality-gate | `test_semgrep_error_bloquea`, `test_codeql_alta_bloquea` | unittest | Exit 1 | pendiente | pendiente |
 | QG-03 | quality-gate | `test_hallazgos_menores_no_bloquean` | unittest | Exit 0 | pendiente | pendiente |
-| QG-04 | quality-gate | `test_spotbugs_security_bloquea` | unittest | Exit 1 | pendiente | pendiente |
+| QG-04 | quality-gate | `test_spotbugs_security_bloquea` (p1 y p2 bloquean, p3 no) | unittest | Exit 1 | pendiente | pendiente |
 | QG-05 | quality-gate | `test_dc_suprimido_no_bloquea` | unittest | Exit 0 + listado "suprimido" | pendiente | pendiente |
 | QG-06 | quality-gate | `test_reporte_faltante_fail_closed` | unittest | Exit 2 | pendiente | pendiente |
 | QG-07 | quality-gate | `test_reporte_corrupto_fail_closed` | unittest | Exit 2 | pendiente | pendiente |
@@ -63,3 +68,4 @@ Tipos de prueba: **unittest** (gate en Python), **local** (escaneo local con `he
 | CD-05 | container-delivery | CI/CD en `main` | run + api | Paquete GHCR con etiquetas `sha-*`, `main`, `latest` | pendiente | pendiente |
 | CD-06 | container-delivery | CI/CD en `develop` | run | Paso push `skipped` | pendiente | pendiente |
 | CD-07 | container-delivery | Nightly | run | Reporte de imagen sin push | pendiente | pendiente |
+| CD-08 | container-delivery | `test_trivy_imagen_os_sin_fix_no_bloquea` + SARIF completo en Code scanning | unittest + run | Exit 0 con CVE de SO sin fix; visible en SARIF | pendiente | pendiente |

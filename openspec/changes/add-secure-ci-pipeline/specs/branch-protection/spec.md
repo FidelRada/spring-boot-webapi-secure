@@ -7,7 +7,7 @@ Impedir que código que no supera el pipeline de seguridad llegue a `main` o `de
 ## ADDED Requirements
 
 ### Requirement: Ruleset versionado y aplicado
-El repositorio SHALL versionar `.github/rulesets/proteger-main-develop.json` y aplicarlo con `gh api` como ruleset activo (`enforcement: active`) sobre `refs/heads/main` y `refs/heads/develop`, sin actores de bypass.
+El repositorio SHALL versionar `.github/rulesets/proteger-main-develop.json` y aplicarlo con `gh api` como ruleset activo (`enforcement: active`, disponible en repositorios públicos con GitHub Free) sobre `refs/heads/main` y `refs/heads/develop`, sin actores de bypass.
 
 #### Scenario: BP-01 Ruleset activo sin bypass
 - **WHEN** se ejecuta `gh api repos/FidelRada/spring-boot-webapi-secure/rulesets/<id>`

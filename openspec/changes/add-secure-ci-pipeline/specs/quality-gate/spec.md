@@ -14,7 +14,7 @@ El Quality Gate SHALL descargar los artifacts `reporte-*` del run, parsear cada 
 - **THEN** el job Quality Gate termina con código 1 y el hallazgo aparece listado en el Step Summary
 
 #### Scenario: QG-02 Hallazgo SAST de nivel error bloquea
-- **WHEN** el SARIF de Semgrep contiene un resultado con `level: error` o el de CodeQL uno con `security-severity` ≥ 7.0
+- **WHEN** el SARIF de Semgrep contiene un resultado cuyo nivel efectivo es `error` (en `result.level` o, si falta, en `defaultConfiguration.level` de la regla), o el de CodeQL uno cuya regla (en `tool.driver.rules` o `tool.extensions[].rules`) tiene `security-severity` ≥ 7.0
 - **THEN** el gate termina con código 1 e indica herramienta, regla y ubicación
 
 #### Scenario: QG-03 Hallazgo de severidad menor no bloquea
@@ -22,8 +22,8 @@ El Quality Gate SHALL descargar los artifacts `reporte-*` del run, parsear cada 
 - **THEN** el gate termina con código 0 y los informa como no bloqueantes en el Step Summary
 
 #### Scenario: QG-04 SpotBugs de seguridad bloquea
-- **WHEN** `spotbugsXml.xml` contiene un `BugInstance` de categoría `SECURITY` con prioridad 1 o rank ≤ 9
-- **THEN** el gate termina con código 1
+- **WHEN** `spotbugsXml.xml` contiene un `BugInstance` de categoría `SECURITY` con prioridad 1 o 2 (p. ej. `SQL_INJECTION_SPRING_JDBC`, prioridad 2)
+- **THEN** el gate termina con código 1, y los `BugInstance` `SECURITY` de prioridad 3 (p. ej. `SPRING_ENDPOINT`) se listan como no bloqueantes
 
 #### Scenario: QG-05 Vulnerabilidad suprimida no bloquea
 - **WHEN** una vulnerabilidad figura en `suppressedVulnerabilities` del JSON de Dependency-Check

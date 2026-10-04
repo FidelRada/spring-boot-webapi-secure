@@ -7,10 +7,14 @@ El pipeline heredado del upstream no protege nada: el `quality-gate` solo mira `
 ## What Changes
 
 - Nuevo workflow reutilizable `.github/workflows/security-scans.yml` (`workflow_call`) con los jobs Build & Test, SAST Semgrep, SAST CodeQL, SAST SpotBugs + FindSecBugs, SCA SBOM CycloneDX + Trivy, SCA OWASP Dependency-Check (opcional por input) y Quality Gate.
-- Callers reescritos: `ci-sec.yml` (push `feature/**`, `bugfix/**`, `hotfix/**` y PR a `main`/`develop`), `ci-cd-sec.yml` (push `main`/`develop`; build de imagen → Trivy imagen → push a GHCR solo en `main`) y `ci-sec-nightly.yml` (cron 20:55 America/La_Paz + `workflow_dispatch`, con Dependency-Check e imagen escaneada sin push).
+- Callers reescritos: `ci-sec.yml` (push `feature/**`, `bugfix/**`, `hotfix/**` y PR a `main`/`develop`), `ci-cd-sec.yml` (push `main`/`develop`; build de imagen → Trivy imagen → push a GHCR solo en `main`) y `ci-sec-nightly.yml` (`cron: '55 20 * * *'` con `timezone: America/La_Paz` + `workflow_dispatch`, con Dependency-Check e imagen escaneada sin push). Los jobs caller conceden los permisos que el reutilizable necesita (un reutilizable solo puede reducirlos).
 - **BREAKING (CI)**: se elimina `security-semgrep.yml` (absorbido en el reutilizable) y los jobs de despliegue de ejemplo deshabilitados con `if: false`.
 - Nuevo `.github/scripts/quality_gate.py` (+ `tests/` con unittest y fixtures) que **lee** los reportes SARIF (Semgrep, CodeQL), XML (SpotBugs) y JSON (Dependency-Check, Trivy), falla ante hallazgos HIGH/CRITICAL y es *fail-closed* (reporte ausente o ilegible ⇒ falla).
-- `pom.xml`: se elimina `nvdApiKey` (pasa al secreto `NVD_API_KEY`), umbral CVSS parametrizado como propiedad `dc.failBuildOnCVSS`, FindSecBugs en SpotBugs, salida XML de SpotBugs, reportes DC HTML/JSON/SARIF y archivo de supresiones.
+- `pom.xml`:
+  - Dependency-Check sube de 11.1.1 a 13.0.0 y se elimina `nvdApiKey`: la clave pasa al secreto `NVD_API_KEY`, leído con `nvdApiKeyEnvironmentVariable`.
+  - El umbral CVSS queda parametrizado como la propiedad `dc.failBuildOnCVSS=7`.
+  - Reportes DC en HTML/JSON/SARIF, OSS Index deshabilitado y archivo de supresiones.
+  - SpotBugs 4.9.8.5 con FindSecBugs 1.14.0 y salida XML.
 - Nuevo `dependency-check-suppressions.xml` (válido, sin supresiones injustificadas).
 - `Dockerfile` reparado (builder `maven:3.9-eclipse-temurin-21`, runtime `eclipse-temurin:21-jre-alpine`, usuario no root con `adduser`, healthcheck con `wget`).
 - Nuevo `.github/dependabot.yml` (maven, github-actions y docker).
@@ -35,21 +39,25 @@ El pipeline heredado del upstream no protege nada: el `quality-gate` solo mira `
 
 | Punto | Fuente | Requisito(s) |
 |---|---|---|
-| Fork/clon del repositorio de trabajo | Consigna | (fase 1, fuera de spec) |
-| Semgrep y Dependency-Check ejecutados localmente | Consigna | SAST-06, SCA-06, QG-14 |
+| Fork/clon del repositorio de trabajo | Consigna | Fase 1, ya hecho (`FidelRada/spring-boot-webapi-secure`, `fork: true`, público); evidencia `git remote -v` en el informe |
+| Semgrep y Dependency-Check ejecutados localmente | Consigna | SAST-06, SCA-06, SCA-12, QG-14 |
+| Repositorio funcional | Consigna | CIW-14, CIW-07, CIW-10 |
 | CI [feature/**] | Consigna | CIW-01 |
 | CI/CD [main, develop] | Consigna | CIW-03, CD-05, CD-06 |
 | CI/CD nightly + SCA (Dependency-Check) | Consigna | CIW-04, CIW-05, SCA-03, CD-07 |
 | CodeQL o Semgrep, Dependency-Check, SpotBugs | Consigna | SAST-01..05, SAST-07, SCA-02, SCA-03 |
 | Quality gate que lea reportes con hallazgos críticos | Consigna | QG-01..QG-14 |
 | Merges a main bloqueados si el pipeline falla | Consigna | BP-01..BP-07 |
-| PDF con capturas (workflows, reportes locales y del pipeline) | Consigna | trazabilidad.md (columna Figura) |
+| PDF con capturas (workflows, reportes locales y del pipeline) | Consigna | CIW-15 (descarga de evidencias), tasks 6.2 y 8.7, trazabilidad.md (columna Figura); el informe es la fase 8 |
+| Exploración `dependency:tree` | Guía 02 §5 | SCA-10 |
 | SBOM CycloneDX 2.9.3 / schema 1.6 | Guía 02 §6 | SCA-01 |
 | Caso didáctico commons-text 1.9 | Guía 02 §7 | SCA-02, QG-01 |
 | Trivy 0.74.0 por Docker (local y Actions) | Guía 02 §8–9 | SCA-02, CD-04 |
-| Gate HIGH/CRITICAL sin `--ignore-unfixed` | Guía 02 §9 | QG-01, SCA-08 |
+| Workflow SCA (SBOM → Trivy → gate) | Guía 02 §9 | Job "SCA - SBOM y vulnerabilidades" del reutilizable (CIW-01, SCA-01, SCA-02) |
+| Gate HIGH/CRITICAL sin `--ignore-unfixed` | Guía 02 §9 | QG-01, SCA-08 (SBOM). Excepción documentada solo para los paquetes del SO de la imagen: CD-04, CD-08 |
 | Required check en ruleset | Guía 02 §10 | BP-01, BP-06 |
 | Dependabot maven + github-actions | Guía 02 §11 | SCA-09 |
+| Dependency graph, alerts y security updates habilitados en Settings | Guía 02 §11 | SCA-11 |
 | No bajar umbrales ni desactivar controles | Guía 02 §12 | CIW-06, SCA-08 |
 | Corrección 1.9 → 1.10.0 y `comparacion.md` | Guía 02 §12–13 | change `remediate-app-vulnerabilities` (APP-20, APP-22) |
 

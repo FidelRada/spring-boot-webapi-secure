@@ -12,7 +12,7 @@ Motivación en `proposal.md`. Estado observado en `src/main/java/bo/edu/devsecop
 - `application.properties`: actuator `*`, `env.show-values=always`, H2 console con `web-allow-others`, `include-message/stacktrace=always`, `lab.external.api-key` en claro.
 - Test `adminEndpointIsCurrentlyExposedForTheLab` exige el comportamiento inseguro (200 anónimo).
 
-Restricción: el pipeline del change 1 (umbrales CVSS ≥ 7 / HIGH, SARIF `error`, `security-severity` ≥ 7, FindSecBugs SECURITY p1/rank ≤ 9) no se toca; la remediación debe dejar los reportes limpios por sí misma.
+Restricción: el pipeline del change 1 (umbrales CVSS ≥ 7 / HIGH, SARIF `error`, `security-severity` ≥ 7, FindSecBugs SECURITY con prioridad ≤ 2, Trivy imagen según D5 del change 1) no se toca; la remediación debe dejar los reportes limpios por sí misma.
 
 ## Goals / Non-Goals
 
@@ -31,13 +31,22 @@ Restricción: el pipeline del change 1 (umbrales CVSS ≥ 7 / HIGH, SARIF `error
 `jdbcTemplate.queryForList("SELECT id, name, price FROM products WHERE name LIKE ?", "%" + escaparComodines(name) + "%")`. Los comodines `%`/`_` del usuario se escapan (`ESCAPE '\'`) para que sean literales. *Alternativa*: `NamedParameterJdbcTemplate` (equivalente, más ruido). Pruebas: APP-01..APP-03.
 
 ### D2. XSS: codificación de salida + cabeceras
-`HtmlUtils.htmlEscape(comment)` de Spring (sin dependencia nueva). Spring Security añade `X-Content-Type-Options: nosniff` y `X-Frame-Options: DENY` por defecto; se configura `headers.contentSecurityPolicy("default-src 'none'; style-src 'self'; frame-ancestors 'none'")`. *Alternativa*: devolver JSON en lugar de HTML (rompe el contrato del endpoint). Pruebas: APP-04, APP-05.
+`import org.owasp.encoder.Encode;` → `String seguro = Encode.forHtml(comment); String html = "<html>…<p>" + seguro + "</p>…"; return ResponseEntity.ok(html);` (dependencia `org.owasp.encoder:encoder:1.5.0`). Spring Security añade `X-Content-Type-Options: nosniff` y `X-Frame-Options: DENY` por defecto; además se configura `headers.contentSecurityPolicy("default-src 'none'; style-src 'self'; frame-ancestors 'none'")`.
+
+Por qué no `HtmlUtils.htmlEscape` (decisión del planificador revisada en la auditoría, con pruebas sobre una copia del repo):
+- `HtmlUtils.htmlEscape` corrige el XSS, pero Semgrep `java.spring.security.injection.tainted-html-string` (p/java, nivel `error`, bloqueante) solo reconoce como sanitizadores `Encode.forHtml`, `PolicyFactory.sanitize`, `AntiSamy.scan` y `JSoup.clean`. Con `HtmlUtils` el hallazgo persiste y el gate seguiría rojo.
+- Con `Encode.forHtml` importado y el HTML armado en una variable, Semgrep 1.179.0 da 0 hallazgos en `CommentController`. Tampoco salta `lab-html-without-output-encoding`, cuyo patrón `ResponseEntity.ok($PREFIX + $INPUT + $SUFFIX)` marca cualquier concatenación dentro de `ok(...)`, aunque esté escapada.
+- CodeQL `java/xss` (7.8): su sanitizador nativo es un método cuyo nombre encaja con `(?i)html_?escape.*`. `Encode.forHtml` no tiene modelo de flujo en CodeQL, así que la propagación se corta en la llamada. Se verifica en el primer run de CI del change; si CodeQL lo marcara, la alternativa es `HtmlUtils.htmlEscape` + `// nosemgrep: java.spring.security.injection.tainted-html-string` con justificación en el mismo commit.
+- *Alternativa descartada*: devolver JSON en lugar de HTML (rompe el contrato del endpoint).
+
+Pruebas: APP-04, APP-05.
 
 ### D3. Autenticación y autorización
 - `SecurityFilterChain`: rutas públicas `GET /api/products/search`, `POST /api/comments/preview`, `POST /api/auth/login`, `GET /api/csrf`, `GET /actuator/health`; `/api/admin/**` → `hasRole("ADMIN")`; `/actuator/**` → `hasRole("ADMIN")`; `anyRequest().authenticated()`; `httpBasic()`; `formLogin` deshabilitado.
 - `PasswordEncoder`: `PasswordEncoderFactories.createDelegatingPasswordEncoder()` (bcrypt por defecto, admite prefijo `{bcrypt}`).
 - `UserDetailsService`: `InMemoryUserDetailsManager` con `admin` (ADMIN) y `ana` (USER) cuyos hashes vienen de `lab.security.admin-password-hash=${LAB_ADMIN_PASSWORD_HASH:}` y `lab.security.user-password-hash=${LAB_USER_PASSWORD_HASH:}` (`@ConfigurationProperties` → record `LabSecurityProperties`). Si un hash falta, ese usuario no se registra y se emite un WARN sin datos sensibles; la app arranca igualmente (necesario para el healthcheck del contenedor).
-- Los tests usan `src/test/resources/application.properties` con hashes bcrypt de contraseñas de prueba (no son secretos de producción) y `httpBasic(...)` de `spring-security-test`.
+- Los tests usan el perfil `test`: `src/test/resources/application-test.properties` con hashes bcrypt de contraseñas de prueba (no son secretos de producción) y `@ActiveProfiles("test")` en `DevSecOpsLabApplicationTests` y `SecurityRemediationTests`. Así `mvn -B clean verify` no necesita variables de entorno, ni en local ni en CI. No se usa `src/test/resources/application.properties` porque ocultaría por completo el `application.properties` principal en el classpath de test y las pruebas dejarían de ejercer la configuración endurecida. Para las pruebas se usa `httpBasic(...)` de `spring-security-test`.
+- Despacho de errores: `.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()`. Así un 404/400/500 de un endpoint público no se convierte en 401 al reenviarse a `/error`, y el cuerpo de error (sin `trace` ni `message`, D6) es el que se observa en APP-09 y APP-19.
 - `AdminController`: captura `EmptyResultDataAccessException` → `ResponseStatusException(NOT_FOUND)`. La consulta ya es parametrizada.
 - *Alternativa descartada*: JWT firmado con secreto de entorno (más código, sin valor para la consigna). Pruebas: APP-06..APP-10.
 
@@ -45,7 +54,10 @@ Restricción: el pipeline del change 1 (umbrales CVSS ≥ 7 / HIGH, SARIF `error
 CSRF activo con el `HttpSessionCsrfTokenRepository` por defecto (evita una cookie `XSRF-TOKEN` sin `HttpOnly`, que Semgrep marcaría). `CsrfController` expone `GET /api/csrf` → `{"headerName":"X-CSRF-TOKEN","token":"..."}` y crea la sesión. Clientes: `curl -c cookies` → `GET /api/csrf` → `POST` con `-b cookies -H "X-CSRF-TOKEN: <token>"`. Pruebas MockMvc con `.with(csrf())` y sin él. Pruebas: APP-11, APP-12.
 
 ### D5. Login y logs
-`AuthController` recibe `AuthenticationManager` (bean expuesto desde `AuthenticationConfiguration`) y llama a `authenticate(UsernamePasswordAuthenticationToken.unauthenticated(u, p))`. Éxito → `200 {"message":"Acceso autorizado","usuario":u,"roles":[...]}`; `AuthenticationException` → `401 {"error":"Credenciales incorrectas"}`. Se registra solo `usuario` neutralizado (`replaceAll("[\\r\\n]", "_")`) y el resultado, nunca la password. Se eliminan `ADMIN_PASSWORD` y `JWT_SECRET`. Pruebas: APP-13..APP-15 (`OutputCaptureExtension`).
+`AuthController` recibe `AuthenticationManager` (bean expuesto desde `AuthenticationConfiguration`) y llama a `authenticate(UsernamePasswordAuthenticationToken.unauthenticated(u, p))`. Éxito → `200 {"message":"Acceso autorizado","usuario":u,"roles":[...]}`; `AuthenticationException` → `401 {"error":"Credenciales incorrectas"}`. Se registra solo el `usuario` neutralizado con `valor.replace("\r", "_").replace("\n", "_")` y el resultado, nunca la password. Se eligió este patrón porque los dos analizadores lo reconocen:
+- FindSecBugs 1.14.0 deja de reportar `CRLF_INJECTION_LOGS` (prioridad 2, bloqueante) con `replace` de `"\r"`/`"\n"`, pero **no** con `replaceAll("[^A-Za-z0-9._@-]", "_")` (verificado en la auditoría).
+- Es el patrón `replace` que el sanitizador `LogInjection.qll` de CodeQL acepta. La variante `replaceAll("[\\r\\n]", "_")` del plan original no la reconoce CodeQL (no empieza por `[^` ni es exactamente `\\n`/`\\r`), y en la auditoría FindSecBugs tampoco aceptó `replaceAll` como sanitizador.
+- Si aun así algún analizador lo marcara, se elimina el usuario del mensaje de log. Se eliminan `ADMIN_PASSWORD` y `JWT_SECRET`. Pruebas: APP-13..APP-15 (`OutputCaptureExtension`).
 
 ### D6. Configuración
 ```properties
@@ -61,7 +73,20 @@ lab.external.api-key=${LAB_EXTERNAL_API_KEY:}
 Pruebas: APP-16..APP-19.
 
 ### D7. Dependencias
-`commons-text` 1.9 → 1.10.0 (guía 02 §12; la clase no se usa en el código, eliminarla también sería válido, pero se conserva para documentar la comparación). Para cada CVE transitivo HIGH/CRITICAL que reporten Trivy o DC: 1) subir la propiedad gestionada por el parent (p. ej. `tomcat.version`, `jackson-bom.version`) a una versión corregida compatible y verificar `mvn verify`; 2) si es falso positivo o no aplicable, supresión en `dependency-check-suppressions.xml` con `<notes>` y `until` ≤ 90 días. Nunca se cambia el umbral. Pruebas: APP-20..APP-22.
+`commons-text` 1.9 → 1.10.0 (guía 02 §12; la clase no se usa en el código, eliminarla también sería válido, pero se conserva para documentar la comparación).
+
+Situación anticipada en la auditoría (Trivy 0.74.0 sobre el SBOM del commit ROJO): además de CVE-2022-42889 hay 22 HIGH/CRITICAL transitivos:
+
+| Componente | Versión | Corregida en |
+|---|---|---|
+| `tomcat-embed-core` | 10.1.54 | 10.1.58 |
+| `jackson-core` / `jackson-databind` | 2.21.2 | 2.21.7 |
+| `micrometer-core` | 1.15.11 | 1.15.12 |
+| `spring-webmvc` / `spring-expression` | 6.2.18 | 6.2.19 |
+
+El parent 3.5.16 (el último 3.5.x) trae tomcat 10.1.55, jackson 2.21.4, micrometer 1.15.12 y spring 6.2.19, así que no basta por sí solo.
+
+Prototipo verificado en una copia: parent **3.5.16** + `<tomcat.version>10.1.60</tomcat.version>` + `<jackson-bom.version>2.21.7</jackson-bom.version>` + commons-text 1.10.0. Con eso `mvn -B clean verify` queda en verde y Trivy da **0 HIGH/CRITICAL**. Dependency-Check puede añadir falsos positivos por CPE, que se tratan con el procedimiento siguiente. Para cada CVE transitivo HIGH/CRITICAL que reporten Trivy o DC: 1) subir la propiedad gestionada por el parent (p. ej. `tomcat.version`, `jackson-bom.version`) a una versión corregida compatible y verificar `mvn verify`; 2) si es falso positivo o no aplicable, supresión en `dependency-check-suppressions.xml` con `<notes>` y `until` ≤ 90 días. Nunca se cambia el umbral. Pruebas: APP-20..APP-22.
 
 ### D8. Commits de remediación
 Un commit por familia (para el gitGraph y el informe): `fix(sqli)`, `fix(xss)`, `fix(authz-csrf)`, `fix(secretos-config)`, `fix(deps)`, `test(seguridad)`. Cada commit compila y pasa sus propias pruebas.
@@ -184,6 +209,9 @@ classDiagram
 - [CVE transitivos de Spring Boot 3.5.14 sin versión corregida compatible] → supresión justificada con `until` y registro en `comparacion.md` como pendiente; si no es justificable, el gate seguirá rojo y se reporta al usuario.
 - [Clientes del laboratorio (README, guías) dejan de funcionar por CSRF/401] → actualizar `README.md` con el flujo curl de D4 y la generación del hash (`htpasswd -bnBC 10 "" <clave> | tr -d ':\n'`).
 - [El hash bcrypt en `src/test/resources` es marcado como secreto] → Semgrep se ejecuta sobre `src/main/java`; los valores son solo de prueba y se documentan como tales.
+- [MockMvc no reenvía a `/error`, así que no puede observar el cuerpo de error real] → APP-19 se verifica con `@SpringBootTest(webEnvironment = RANDOM_PORT)` + `TestRestTemplate` (o con curl E2E), no con MockMvc.
+- [Semgrep `lab-sensitive-data-in-log` (WARNING) puede seguir marcando la línea de log del login] → no bloquea; si se quiere un reporte totalmente limpio, se registra el usuario en un mensaje sin la variable `password` en el método.
+- [La nueva dependencia `org.owasp.encoder:encoder` 1.5.0 añade superficie SCA] → no tiene CVE conocidos a la fecha y queda cubierta por Trivy y DC como cualquier otra.
 - [El healthcheck del contenedor falla si `/actuator/health` queda protegido] → ruta pública explícita (D3) y escenario APP-17.
 
 ## Migration Plan

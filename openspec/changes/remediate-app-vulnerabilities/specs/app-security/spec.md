@@ -77,14 +77,14 @@ Las peticiones que cambian estado o envían datos (`POST`, `PUT`, `PATCH`, `DELE
 - **THEN** la respuesta es 200, contiene el usuario y sus roles, y no contiene el campo `token` ni la cadena `devsecops-lab-secret`
 
 #### Scenario: APP-14 Credenciales inválidas
-- **WHEN** se envía `{"username":"admin","password":"Admin123!"}` (la contraseña hardcodeada anterior)
-- **THEN** la respuesta es 401 con `Credenciales incorrectas`
+- **WHEN** se envía `{"username":"admin","password":"Admin123!"}` (la contraseña hardcodeada anterior) con un token CSRF válido
+- **THEN** la respuesta es 401 con `Credenciales incorrectas` (y sin token CSRF la respuesta es 403, como en APP-11)
 
 ### Requirement: Logs sin datos sensibles
 La aplicación MUST NOT escribir contraseñas en los logs y SHALL neutralizar los caracteres de control (CR/LF) de cualquier valor del usuario que registre.
 
 #### Scenario: APP-15 Password ausente del log
-- **WHEN** se intenta un login con la contraseña `ClaveDePrueba-XYZ` y se captura la salida de log
+- **WHEN** se intenta un login (con token CSRF válido) con la contraseña `ClaveDePrueba-XYZ` y se captura la salida de log
 - **THEN** la salida no contiene `ClaveDePrueba-XYZ`, y un usuario con `\r\n` aparece sin saltos de línea
 
 ### Requirement: Sin secretos en el código
@@ -106,8 +106,8 @@ La aplicación SHALL exponer de Actuator solo `health` (público) e `info`, ocul
 - **THEN** la respuesta no es la consola H2 (401 o 404)
 
 #### Scenario: APP-19 Errores sin stacktrace
-- **WHEN** una petición provoca un error del servidor o de validación
-- **THEN** el cuerpo JSON no contiene `trace` ni el mensaje interno de la excepción
+- **WHEN** una petición real por HTTP (`TestRestTemplate` con `RANDOM_PORT`, o curl) provoca un error del servidor o de validación, p. ej. `GET /api/admin/users/999` como admin o un `POST /api/auth/login` con JSON mal formado y token CSRF
+- **THEN** el cuerpo JSON de `/error` no contiene `trace` ni el mensaje interno de la excepción, y el código es el del error (404/400), no 401
 
 ### Requirement: Dependencias sin vulnerabilidades altas
 Las dependencias resueltas SHALL quedar sin vulnerabilidades HIGH/CRITICAL según Trivy y Dependency-Check; commons-text SHALL estar en 1.10.0 o superior, y cualquier excepción MUST ser una supresión justificada con fecha `until`, sin bajar umbrales.
