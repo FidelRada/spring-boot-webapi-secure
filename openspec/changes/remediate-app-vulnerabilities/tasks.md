@@ -87,3 +87,9 @@
 - SHA tras el reorden de la fase 6: los de la tabla de commits (entre paréntesis, los anteriores). Además, `8c7d9f7` → `bd0019e`, `9c21ab3` → `de4d6d2`, `89e8155` → `d8eed4c` y `c2759ef` → `cc5f4cc` (HEAD publicado).
 - 7.3: E2E curl en la fase 6 local. Antes (ROJO_FINAL `8acb79d`): 14/14 vulnerabilidades reproducidas. Después (`cc5f4cc`): 19/19 controles (`evidencias/e2e/`, carpeta del laboratorio).
 - 7.4: el PR del laboratorio es el **PR #2** (https://github.com/FidelRada/spring-boot-webapi-secure/pull/2), porque Dependabot abrió el #1. Run `pull_request` 37227469858 sobre `cc5f4cc` con el gate en **success** (0 bloqueantes, 17 no bloqueantes, 15 suprimidos) y `mergeStateStatus=CLEAN`. El SARIF de CodeQL del push 37227467114 (sin filtro de diff) tiene **0 resultados**: no queda `java/xss` con `Encode.forHtml` y no hizo falta la alternativa de D2. El merge lo hará el usuario (BP-04).
+
+## Notas de cierre (fase 7, 2026-10-04)
+
+- Merges hechos por el usuario: PR #2 → `develop` = `75fa4eb` y PR #4 `develop` → `main` = `8e01f3d`. Al llegar `commons-text` 1.10.0 a `main`, la alerta Dependabot #1 (CVE-2022-42889) pasó a `fixed` (2026-10-04T20:28:41Z) y Dependabot cerró su PR #1.
+- El PR #5 de regresión (`6f47203`, concatenación SQL reintroducida) demuestra que las pruebas APP-01/APP-03 (`Build & Test` failure) y los escáneres (Semgrep 2, CodeQL 1, SpotBugs 1) detectan la vuelta de la SQLi: gate BLOQUEADO y `mergeStateStatus=BLOCKED`; cerrado sin merge.
+- Re-ejecución de humo sobre `main` (`8e01f3d`): `mvn -B clean verify` 24/24 OK y `e2e_curl.sh despues` contra la imagen publicada `ghcr.io/fidelrada/spring-boot-webapi-secure:sha-8e01f3d`: 19/19 controles esperados (`evidencias/e2e/despues_ghcr.txt`, carpeta del laboratorio).

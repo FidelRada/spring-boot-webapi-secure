@@ -59,3 +59,17 @@ Resumen de Trivy sobre el SBOM (local):
    - **Spring sin versión OSS corregida.** Dependency-Check, por CPE, reporta 12 CVE de Spring Framework 6.2.0–6.2.19 y 3 de Spring Security 6.5.0–6.5.11. Las versiones corregidas (6.2.20 y 6.5.12) no están publicadas en Maven Central: la línea Spring Boot 3.5 ya no tiene soporte OSS. Ninguno aplica a esta aplicación: afectan a WebFlux, RSocket, Jetty, XsltView, SSE, SpEL con entrada del usuario, data binding de rutas de propiedades, LDAP embebido, DPoP o WebAuthn, que la app no usa ni tiene en el classpath. Trivy (GHSA) no los reporta. Se suprimieron uno a uno en `dependency-check-suppressions.xml`, con justificación en `<notes>` y `until="2026-12-31Z"`. Al vencer vuelven a bloquear. La solución definitiva es migrar a Spring Boot 4.x (Framework 7 / Security 7), fuera del alcance del laboratorio.
    - `commons-lang3` 3.17.0, CVE-2025-48924: MEDIUM, no bloquea según la política; se corrige en 3.18.0.
    - Los resultados dependen de la fecha: la base de vulnerabilidades cambia aunque el código no cambie.
+
+## Seguimiento tras el merge (fases 6b y 7, 2026-10-04)
+
+- **Promoción:** PR #2 → `develop` (`75fa4eb`) y PR #4 `develop` → `main` (`8e01f3d`), fusionados por el autor.
+- **CI/CD `develop`:** run [37231215444](https://github.com/FidelRada/spring-boot-webapi-secure/actions/runs/37231215444), success; imagen construida y escaneada con Trivy, publicación en GHCR `skipped` (solo `main` publica).
+- **CI/CD `main`:** run [37232239081](https://github.com/FidelRada/spring-boot-webapi-secure/actions/runs/37232239081), success; gate de la imagen APROBADO (Trivy en 2 pasadas: SO con `--ignore-unfixed`, librerías sin él) y publicación de `ghcr.io/fidelrada/spring-boot-webapi-secure` con las etiquetas `main`, `latest` y `sha-8e01f3d`, digest `sha256:1a38c5702a2315825b23f3d38b9ee4d8ca01f1e03761b1a954ce33c30c66fe8d`.
+- **Nightly en `main`:** run [37232685268](https://github.com/FidelRada/spring-boot-webapi-secure/actions/runs/37232685268), success, con las cachés de Dependency-Check y Trivy restauradas.
+- **Dependabot:** la alerta #1 (CVE-2022-42889, crítica) pasó a `fixed` el 2026-10-04T20:28:41Z, al llegar `commons-text` 1.10.0 a `main`; Dependabot cerró su PR #1 («up-to-date now»).
+- **Code scanning en `main`:** 11 alertas abiertas (Semgrep 1 warning, Trivy 2 medium/note, dependency-check 8 medium/low); ninguna alcanza el umbral del gate.
+- **Re-ejecución (fase 7):** la imagen publicada `sha-8e01f3d` arranca `healthy` como `uid=100(spring)` y supera los 19 controles E2E con curl.
+
+### Equivalencias de SHA
+
+Los análisis locales se hicieron antes del reorden de la historia (fase 6). Los commits citados equivalen a los publicados así: `1a9980a` = mismo `src/`, `pom.xml` y `.semgrep.yml` que ROJO_FINAL `8acb79d`; `89e8155` → `d8eed4c` (mismo código que `cc5f4cc`); `8c7d9f7` → `bd0019e`; `ac51ff1` → `442fd98`; `e437c2d` → `8acb79d`.

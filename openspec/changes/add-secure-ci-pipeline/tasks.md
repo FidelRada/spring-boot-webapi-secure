@@ -125,10 +125,13 @@
   - Verificar con `gh secret list` y con los `gh api` de SCA-11.
 - [x] 8.2 [E2E] Hacer push de `feature/lab3-ci-seguro` y comprobar el run de CI `push` (SAST-07, QG-11, CIW-01): escáneres en `success` y Quality Gate en `failure` con la tabla en el Step Summary
 - [x] 8.3 [E2E] Abrir el PR #1 → `develop` (CIW-02). Leer los nombres reales con `gh api repos/FidelRada/spring-boot-webapi-secure/commits/<sha>/check-runs --jq '.check_runs[].name'` (CIW-12) y ajustar el JSON del ruleset si difieren
-- [ ] 8.4 [E2E] Aplicar el ruleset con `gh api -X POST repos/FidelRada/spring-boot-webapi-secure/rulesets --input .github/rulesets/proteger-main-develop.json` (BP-01). Comprobar `mergeStateStatus=BLOCKED` y que `gh pr merge 1 --merge` se rechaza (BP-02, BP-03). Probar el push directo, el force-push y el borrado (BP-06, BP-07)
+- [x] 8.4 [E2E] Aplicar el ruleset con `gh api -X POST repos/FidelRada/spring-boot-webapi-secure/rulesets --input .github/rulesets/proteger-main-develop.json` (BP-01). Comprobar `mergeStateStatus=BLOCKED` y que `gh pr merge 1 --merge` se rechaza (BP-02, BP-03). Probar el push directo, el force-push y el borrado (BP-06, BP-07)
+  - Cierre (fase 7): BP-01 y BP-02 OK (ruleset 24465496 activo; `mergeStateStatus=BLOCKED` en el PR #2 rojo, en el PR #1 de Dependabot y en el PR #5 de regresión). **BP-03, BP-06 y BP-07: «OK por configuración».** La prueba activa (`gh pr merge` rechazado, push directo, force-push y borrado) no se ejecutó por política de seguridad del asistente, que no intenta merges ni push a ramas protegidas. Evidencia: `evidencias/pipeline/github_api/ruleset_24465496_final.json`, `rules_main_final.json` y `rules_develop_final.json` (deletion, non_fast_forward, pull_request y required_status_checks; `bypass_actors: []`, `current_user_can_bypass: never`), `pr2_rojo.json`, `pr1_dependabot.json` y `pr5_regresion_blocked.json`. Capturas `github/34`, `60–63` y `79` (carpeta del laboratorio).
 - [x] 8.5 [E2E] Verificar las alertas de Code scanning (SAST-05), el artifact de DC (SCA-03) y la caché de DC en la segunda ejecución (SCA-07)
-- [ ] 8.6 [E2E] Después de los merges del change 2: CI/CD de `develop` y `main` (CIW-03, CD-05, CD-06), nightly con `gh workflow enable` + `gh workflow run ci-sec-nightly.yml --ref main` (CIW-04, CD-07), Dependabot en la rama predeterminada (SCA-09) y PR #3 de regresión (BP-05)
-- [ ] 8.7 [E2E] Ejecutar `gh run download` de cada run citado a `evidencias/pipeline/<runId>_<workflow>/` antes de que expire (7 días) y registrarlo en `evidencias/indice_evidencias.md` y `referencia_pipeline.md` (CIW-15)
+- [x] 8.6 [E2E] Después de los merges del change 2: CI/CD de `develop` y `main` (CIW-03, CD-05, CD-06), nightly con `gh workflow enable` + `gh workflow run ci-sec-nightly.yml --ref main` (CIW-04, CD-07), Dependabot en la rama predeterminada (SCA-09) y PR #5 de regresión (el #3 fue la verificación temporal de E-01 y el #4 la promoción develop → main) (BP-05)
+  - Cierre (fase 7): CI/CD `develop` 37231215444 (`75fa4eb`, push a GHCR `skipped`, CD-06); CI/CD `main` 37232239081 (`8e01f3d`, gate de imagen APROBADO y publicación de `ghcr.io/fidelrada/spring-boot-webapi-secure` con tags `main`, `latest` y `sha-8e01f3d`, digest `sha256:1a38c5702a2315825b23f3d38b9ee4d8ca01f1e03761b1a954ce33c30c66fe8d`, CD-05); nightly `--ref main` 37232685268 (cachés DC y Trivy restauradas, CIW-04, CD-07); Dependabot: alerta #1 `fixed` (2026-10-04T20:28:41Z) y PR #1 cerrado por Dependabot al llegar `commons-text` 1.10.0 a `main` (SCA-09, SCA-11); PR #5 (`6f47203`) + run 37232446198: gate failure (4 bloqueantes) y Build & Test failure, `BLOCKED`, cerrado sin merge (BP-05). Capturas `github/43–57`, `65`, `67`, `70–71`.
+- [x] 8.7 [E2E] Ejecutar `gh run download` de cada run citado a `evidencias/pipeline/<runId>_<workflow>/` antes de que expire (7 días) y registrarlo en `evidencias/indice_evidencias.md` y `referencia_pipeline.md` (CIW-15)
+  - Cierre (fase 7): 23 carpetas `evidencias/pipeline/<runId>_<slug>/` (artifacts `reporte-*`, `run.json`, `log.txt`, `logs/`) + `github_api/`, registradas en `evidencias/indice_evidencias.md` y `memory/referencia_pipeline.md`. Los artifacts de GitHub expiran el 2026-10-11; las copias locales quedan en la carpeta del laboratorio.
 
 ## Notas de aplicación (fase 3, 2026-10-04)
 
@@ -160,4 +163,32 @@
 - 8.5: alertas de Code scanning visibles por ref (Semgrep, CodeQL, dependency-check y Trivy). Artifact `reporte-dependency-check` en el PR y en el nightly. Caché: `dc-data-Linux-2026-40` restaurada en el segundo run del PR (37227469858) y `trivy-db-Linux-2026-10-04` restaurada en el nightly y en los runs verdes. Las cachés de un PR (`refs/pull/N/merge`) no son visibles desde la rama, por eso el primer nightly no encontró la de DC.
 - Verde (`cc5f4cc`): PR 37227469858 y push 37227467114 con gate en success, **PR #2 `CLEAN`**. Nightly `workflow_dispatch` en rojo 37227199354 (`8acb79d`) y en verde 37227684557 (`cc5f4cc`, imagen escaneada sin publicar, CD-07).
 - **Observación (CodeQL en PR):** en `pull_request`, `codeql-action` aplica *diff-informed analysis* («Computing PR diff ranges…») y solo reporta lo que cae en el diff del PR: el run 37226787496 dio 1 bloqueante de CodeQL frente a 4 en el push 37226599366. Semgrep y SpotBugs no filtran y el push a `feature/**`, CI/CD y nightly analizan todo, pero en PR el control de CodeQL es más débil de lo que dice SAST-03. **Resuelto (E-01):** el job de CodeQL fija `CODEQL_ACTION_DIFF_INFORMED_QUERIES: 'false'` (commit `fix(ci): CodeQL analiza el código completo también en pull_request`; requisito de CodeQL + escenario SAST-08). Verificado con un PR borrador temporal (#3, `8acb79d` + la corrección, cerrado sin merge): run `pull_request` 37228705184 con **4** bloqueantes de CodeQL (antes 1) y el log «No precomputed diff ranges found; skipping diff-informed analysis stage».
-- 8.6 y 8.7 quedan pendientes del merge del usuario (8.7 parcial: runs de esta fase descargados en `evidencias/pipeline/`, carpeta del laboratorio).
+- 8.6 y 8.7 quedaban pendientes del merge del usuario; se cerraron en la fase 6b (ver la sección siguiente y las notas de cierre de 8.4, 8.6 y 8.7).
+
+## Notas E2E fase 6b y cierre (fase 7, 2026-10-04)
+
+- Merges hechos por el usuario: PR #2 → `develop` = `75fa4eb`; PR #4 `develop` → `main` = `8e01f3d`.
+- **CIW-03:** en `75fa4eb` y `8e01f3d` el push ejecuta CI/CD (37231215444 y 37232239081) y no CI (`evidencias/pipeline/github_api/ciw03_runs_por_sha.txt`).
+- **CIW-13:** dos push seguidos a `feature/demo-concurrencia`: 37232396110 `cancelled` («Canceling since a higher priority waiting request … exists») y 37232398161 success. Rama borrada.
+- **Conteos de bloqueantes del ROJO** (no son contradictorios; cambia el conjunto de herramientas):
+  - 80 = gate local (`evidencias/locales/antes/`): DC 47 + Trivy 23 + Semgrep 7 + SpotBugs 3; CodeQL solo corre en GitHub.
+  - 37 = CI `push` a `feature/**` (37226599366): DC no corre en push a feature (QG-10) → CodeQL 4 + Semgrep 7 + SpotBugs 3 + Trivy 23.
+  - 81 = CI `pull_request` del PR #2 (37226787496): los 80 + CodeQL 1 por el *diff-informed analysis* (E-01).
+  - 84 = nightly (37227199354) y PR #3 temporal (37228705184): los 80 + CodeQL 4 con el análisis completo (SAST-08).
+  - 4 = PR #5 de regresión (37232446198): Semgrep 2 + CodeQL 1 + SpotBugs 1 (solo la SQLi reintroducida).
+- **Re-ejecución de humo (fase 7, `main` = `8e01f3d`):** `mvn -B clean verify` 24/24 OK; `unittest` del gate 31/31 OK; imagen publicada `ghcr.io/fidelrada/spring-boot-webapi-secure:sha-8e01f3d` (digest `sha256:1a38c570…fe8d`) `healthy`, `uid=100(spring)`, `e2e_curl.sh despues` 19/19 esperados (`evidencias/e2e/despues_ghcr.txt`).
+
+### Equivalencias de SHA (reorden de la fase 6)
+
+Las notas de las fases 3 y 4 citan SHA anteriores al reorden. Equivalencias (el árbol es el mismo):
+
+| Antes del reorden | Publicado |
+|---|---|
+| `1a9980a` | `1a9980a` (sin cambio) |
+| `ac51ff1` | `442fd98` |
+| `e437c2d` | `8acb79d` (ROJO_FINAL) |
+| `079e330` / `0fad219` / `cd2b7b2` | `909f2fe` / `1f48e20` / `cbdd3ea` |
+| `e1e5bcb` / `1042b3b` / `93ae916` | `6a31f00` / `ce4dde4` / `c0fe5cf` |
+| `2b5d0ec` / `8c7d9f7` / `9c21ab3` | `e75a227` / `bd0019e` / `de4d6d2` |
+| `89e8155` | `d8eed4c` |
+| `c2759ef` | `cc5f4cc` |
