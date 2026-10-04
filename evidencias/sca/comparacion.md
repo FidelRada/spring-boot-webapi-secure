@@ -1,0 +1,61 @@
+# Comparación del análisis SCA
+
+Plantilla de la guía 02 §13, completada para el Laboratorio 3 (change
+`remediate-app-vulnerabilities`, escenario APP-22). Los datos de los runs de GitHub Actions
+se completan en la fase 6 (E2E); hasta entonces figuran como *pendiente fase 6*.
+
+## Identificación
+
+- Grupo: 10 (Andrés Fidel Rada)
+- Repositorio: https://github.com/FidelRada/spring-boot-webapi-secure (fork de `pablovillazon/spring-boot-webapi-secure`)
+- Commit anterior: `1a9980a` — `ci: pipeline seguro con SAST/SCA y quality gate que lee reportes (ROJO)`
+- Commit posterior: commit `fix(deps): commons-text 1.10.0 y CVE transitivos` de la rama `feature/lab3-ci-seguro` (SHA en `git log --grep 'fix(deps)'`)
+- Ejecución anterior: pendiente fase 6 (run de CI del commit ROJO)
+- Ejecución posterior: pendiente fase 6 (run de CI tras la remediación)
+- Pull request: pendiente fase 6 (PR #1 `feature/lab3-ci-seguro` → `develop`)
+- Versión de Trivy: 0.74.0 (`aquasec/trivy:0.74.0`, por Docker); OWASP Dependency-Check 13.0.0 (NVD); CycloneDX Maven Plugin 2.9.3 (schema 1.6)
+- Fecha y hora de los análisis locales: 2026-10-04, 12:52 (antes) y 13:04 (después), America/La_Paz
+
+## Hallazgo seleccionado
+
+| Campo | Antes | Después |
+|---|---|---|
+| Componente | `org.apache.commons:commons-text` | `org.apache.commons:commons-text` |
+| Versión resuelta | 1.9 | 1.10.0 |
+| CVE seleccionado | CVE-2022-42889 (Text4Shell, interpolación de variables → RCE) | CVE-2022-42889 |
+| Severidad reportada | CRITICAL (Trivy/GHSA); CVSS v3.1 9.8 (Dependency-Check/NVD) | — |
+| Presencia del hallazgo | Sí: Trivy SBOM y Dependency-Check (`BUILD FAILURE` con `failBuildOnCVSS=7`) | No: ausente en Trivy y en Dependency-Check |
+| Estado del quality gate | Rojo: `quality_gate.py` local exit 1 (80 bloqueantes, 23 de Trivy y 47 de DC); run del PR pendiente fase 6 | Verde en SCA: Trivy 0 HIGH/CRITICAL, DC `BUILD SUCCESS` sin override; gate local completo en `evidencias/locales/despues/`; run del PR pendiente fase 6 |
+
+Resumen de Trivy sobre el SBOM (local):
+
+| Severidad | Antes (commit ROJO) | Después |
+|---|---|---|
+| CRITICAL | 7 | 0 |
+| HIGH | 16 | 0 |
+| MEDIUM | 23 | 1 |
+| LOW | 5 | 0 |
+
+## Análisis
+
+1. **¿La dependencia era directa o transitiva?**
+   Directa: `mvn dependency:tree` muestra `org.apache.commons:commons-text:jar:1.9:compile` declarada en el `pom.xml` (caso didáctico de la guía 02 §7). Los demás HIGH/CRITICAL eran transitivos, heredados de Spring Boot 3.5.14: `tomcat-embed-core` 10.1.54, `jackson-core`/`jackson-databind` 2.21.2, `micrometer-core` 1.15.11, `spring-webmvc`/`spring-expression` 6.2.18 y `log4j-api` 2.24.3.
+
+2. **¿Qué cambio se realizó y por qué?**
+   - `commons-text` 1.9 → 1.10.0, la primera versión corregida (aviso de Apache Commons Text).
+   - Parent `spring-boot-starter-parent` 3.5.14 → 3.5.16 (spring 6.2.19, micrometer 1.15.12) y las propiedades gestionadas `tomcat.version=10.1.60`, `jackson-bom.version=2.21.7` y `log4j2.version=2.25.5`, porque el parent 3.5.16 todavía trae tomcat 10.1.55, jackson 2.21.4 y log4j 2.24.3, que siguen siendo vulnerables.
+   - Ningún umbral cambió: Trivy sigue sin `--ignore-unfixed`, DC sigue con `failBuildOnCVSS=7` y el gate con CVSS ≥ 7.0 / HIGH / CRITICAL.
+
+3. **¿Qué pruebas se ejecutaron para verificar compatibilidad?**
+   `mvn -B clean verify` con 21 pruebas en verde: las 2 originales (una ajustada a 401), 17 de `SecurityRemediationTests` y 2 de `ErroresSinStacktraceTests`. Además, arranque local de la aplicación y los comandos curl del README (CSRF, HTTP Basic, actuator, H2).
+
+4. **¿Qué evidencia muestra que desapareció el hallazgo seleccionado?**
+   - `evidencias/locales/antes/sbom-trivy/sca-report.json` contiene CVE-2022-42889 y `evidencias/locales/despues/sbom-trivy/sca-report.json` no lo contiene (carpeta del laboratorio).
+   - `bom.json` posterior declara `pkg:maven/org.apache.commons/commons-text@1.10.0`.
+   - Dependency-Check local pasa de `BUILD FAILURE` (CVE-2022-42889, 9.8) a `BUILD SUCCESS`.
+   - Los artifacts `reporte-trivy-sbom` y `reporte-dependency-check` de ambos runs se adjuntan en la fase 6.
+
+5. **¿Qué otros hallazgos o limitaciones quedan pendientes?**
+   - **Spring sin versión OSS corregida.** Dependency-Check, por CPE, reporta 12 CVE de Spring Framework 6.2.0–6.2.19 y 3 de Spring Security 6.5.0–6.5.11. Las versiones corregidas (6.2.20 y 6.5.12) no están publicadas en Maven Central: la línea Spring Boot 3.5 ya no tiene soporte OSS. Ninguno aplica a esta aplicación: afectan a WebFlux, RSocket, Jetty, XsltView, SSE, SpEL con entrada del usuario, data binding de rutas de propiedades, LDAP embebido, DPoP o WebAuthn, que la app no usa ni tiene en el classpath. Trivy (GHSA) no los reporta. Se suprimieron uno a uno en `dependency-check-suppressions.xml`, con justificación en `<notes>` y `until="2026-12-31Z"`. Al vencer vuelven a bloquear. La solución definitiva es migrar a Spring Boot 4.x (Framework 7 / Security 7), fuera del alcance del laboratorio.
+   - `commons-lang3` 3.17.0, CVE-2025-48924: MEDIUM, no bloquea según la política; se corrige en 3.18.0.
+   - Los resultados dependen de la fecha: la base de vulnerabilidades cambia aunque el código no cambie.
