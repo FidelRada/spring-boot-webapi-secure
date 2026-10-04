@@ -24,6 +24,7 @@ Tipos de prueba: **unittest** (gate en Python), **local** (escaneo local con `he
 | SAST-01 | sast-scanning | Semgrep sobre commit ROJO | local + run | `semgrep.sarif` con `lab-java-sql-concatenation` | pendiente | pendiente |
 | SAST-02 | sast-scanning | Inspección del comando Semgrep | revisión | Fragmento YAML/script con `--metrics=off` | pendiente | pendiente |
 | SAST-03 | sast-scanning | CodeQL en run de CI | run | `reporte-codeql/*.sarif` con `java/sql-injection` | pendiente | pendiente |
+| SAST-08 | sast-scanning | CodeQL en run `pull_request` sobre el ROJO, sin diff-informed | run | `reporte-codeql/codeql.sarif` del PR con los mismos bloqueantes que el push; `quality_gate.md` | pendiente | pendiente |
 | SAST-04 | sast-scanning | SpotBugs 4.9.8.5 + FindSecBugs 1.14.0 | local + run | `spotbugsXml.xml` con `SQL_INJECTION_SPRING_JDBC` (p2) y `SPRING_CSRF_PROTECTION_DISABLED` (p1); ya observado en la auditoría | pendiente | pendiente |
 | SAST-05 | sast-scanning | `gh api .../code-scanning/alerts` | api | JSON de alertas + captura Security → Code scanning (manual) | pendiente | pendiente |
 | SAST-06 | sast-scanning | `escaneo_local.sh antes` | local | `evidencias/locales/antes/semgrep.*`, `spotbugsXml.xml` | pendiente | pendiente |
