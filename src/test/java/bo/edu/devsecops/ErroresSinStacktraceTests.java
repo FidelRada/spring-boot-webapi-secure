@@ -19,7 +19,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * APP-19: los errores reales del servidor (servlet /error) no exponen stacktrace ni el
+ * Los errores reales del servidor (servlet /error) no exponen stacktrace ni el
  * mensaje interno de la excepción, y conservan su código (404/400), no 401.
  * MockMvc no reenvía a /error, por eso se usa un servidor en puerto aleatorio.
  */
@@ -31,7 +31,7 @@ class ErroresSinStacktraceTests {
     private TestRestTemplate rest;
 
     @Test
-    @DisplayName("APP-19 Id inexistente como admin: 404 sin trace ni mensaje interno")
+    @DisplayName("Id inexistente como admin: 404 sin trace ni mensaje interno")
     void idInexistenteSinStacktrace() {
         ResponseEntity<String> respuesta = rest
                 .withBasicAuth(SecurityRemediationTests.ADMIN, SecurityRemediationTests.CLAVE_ADMIN_PRUEBA)
@@ -45,7 +45,7 @@ class ErroresSinStacktraceTests {
     }
 
     @Test
-    @DisplayName("APP-19 JSON mal formado con token CSRF: 400 sin trace ni mensaje del parser")
+    @DisplayName("JSON mal formado con token CSRF: 400 sin trace ni mensaje del parser")
     @SuppressWarnings("rawtypes")
     void jsonMalFormadoSinStacktrace() {
         ResponseEntity<Map> csrf = rest.getForEntity("/api/csrf", Map.class);

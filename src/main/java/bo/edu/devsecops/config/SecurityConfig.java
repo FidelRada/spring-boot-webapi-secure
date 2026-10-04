@@ -23,7 +23,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import java.util.regex.Pattern;
 
 /**
- * Seguridad de la API (change remediate-app-vulnerabilities, design.md D3 y D4):
+ * Seguridad de la API:
  * denegación por defecto, /api/admin/** y /actuator/** solo para ADMIN, HTTP Basic,
  * CSRF activo con token de sesión y cabeceras de defensa (CSP, nosniff).
  */

@@ -1,4 +1,4 @@
-# CI de seguridad para ramas de trabajo y pull requests (spec ci-workflows CIW-01, CIW-02).
+# CI de seguridad para ramas de trabajo y pull requests.
 # Toda la batería vive en security-scans.yml; aquí solo se definen disparadores y permisos.
 name: CI - Spring Boot DevSecOps
 
@@ -11,7 +11,7 @@ on:
 permissions:
   contents: read
 
-# Cancela las ejecuciones obsoletas de la misma rama o PR (CIW-13).
+# Cancela las ejecuciones obsoletas de la misma rama o PR.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true

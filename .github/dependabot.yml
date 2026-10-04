@@ -1,6 +1,6 @@
-# Actualizaciones de versiones de Dependabot (spec SCA-09, guía 02 §11).
+# Actualizaciones de versiones de Dependabot (guía 02 §11).
 # Las alertas y las actualizaciones de seguridad se habilitan aparte en Settings → Code security
-# (SCA-11); el secreto NVD_API_KEY también se registra para Dependabot.
+# del repositorio; el secreto NVD_API_KEY también se registra para Dependabot.
 version: 2
 updates:
   - package-ecosystem: maven

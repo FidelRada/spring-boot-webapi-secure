@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Quality Gate del pipeline de seguridad (Laboratorio 3, change add-secure-ci-pipeline).
+"""Quality Gate del pipeline de seguridad (Laboratorio 3).
 
 Lee el CONTENIDO de los reportes de seguridad (no solo el estado de los jobs) y decide
 si el run se aprueba o se bloquea. Es fail-closed: si un reporte requerido falta, está
 vacío o no se puede parsear, el gate falla.
 
-Política de bloqueo (design.md D3):
+Política de bloqueo:
   - Semgrep (SARIF):          nivel efectivo == error (result.level o, si falta,
                                defaultConfiguration.level de la regla).
   - CodeQL (SARIF):           security-severity >= 7.0 (reglas en tool.driver.rules

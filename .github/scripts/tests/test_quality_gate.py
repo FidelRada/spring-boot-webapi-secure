@@ -1,4 +1,4 @@
-"""Pruebas unitarias del Quality Gate (escenarios QG-01..QG-12 y CD-08, spec quality-gate).
+"""Pruebas unitarias del Quality Gate: política de bloqueo, fail-closed y resumen.
 
 Ejecutar desde la raíz del repositorio:
     python3 -m unittest discover -s .github/scripts/tests -v
@@ -81,7 +81,7 @@ class BaseGate(unittest.TestCase):
 
 class TestParsers(BaseGate):
     def test_semgrep_nivel_desde_default_configuration(self):
-        """SAST-01/QG-02: Semgrep OSS no escribe result.level; se usa la regla."""
+        """Semgrep OSS no escribe result.level; se usa el nivel por defecto de la regla."""
         hallazgos = qg.SemgrepParser().parse(FIXTURES / "semgrep_rojo.sarif")
         por_regla = {f.rule: f for f in hallazgos}
         self.assertTrue(por_regla["lab-java-sql-concatenation"].blocking)
@@ -120,34 +120,34 @@ class TestParsers(BaseGate):
         self.assertEqual([(f.rule, f.severity) for f in hallazgos if f.blocking], [("CVE-2022-42889", "CRITICAL")])
 
 
-class TestEscenarios(BaseGate):
-    def test_qg01_cve_critico_en_trivy_bloquea(self):
+class TestPoliticaDelGate(BaseGate):
+    def test_cve_critico_en_trivy_bloquea(self):
         self.colocar_limpios(trivy="trivy_sbom_rojo.json")
         codigo, resumen, _ = self.ejecutar("--required", "semgrep,codeql,spotbugs,trivy,dependency-check")
         self.assertEqual(codigo, 1)
         self.assertIn("CVE-2022-42889", resumen)
         self.assertIn("BLOQUEADO", resumen)
 
-    def test_qg01_cve_critico_en_dependency_check_bloquea(self):
+    def test_cve_critico_en_dependency_check_bloquea(self):
         self.colocar_limpios(dependency_check="dc_rojo.json")
         codigo, resumen, _ = self.ejecutar()
         self.assertEqual(codigo, 1)
         self.assertIn("CVE-2022-42889", resumen)
 
-    def test_qg02_semgrep_error_bloquea_con_herramienta_regla_ubicacion(self):
+    def test_semgrep_error_bloquea_con_herramienta_regla_ubicacion(self):
         self.colocar_limpios(semgrep="semgrep_rojo.sarif")
         codigo, resumen, salida = self.ejecutar()
         self.assertEqual(codigo, 1)
         self.assertIn("| semgrep | `lab-java-sql-concatenation`", resumen)
         self.assertIn("ProductController.java", salida)
 
-    def test_qg02_codeql_severidad_alta_bloquea(self):
+    def test_codeql_severidad_alta_bloquea(self):
         self.colocar_limpios(codeql="codeql_rojo.sarif")
         codigo, resumen, _ = self.ejecutar()
         self.assertEqual(codigo, 1)
         self.assertIn("java/sql-injection", resumen)
 
-    def test_qg03_solo_hallazgos_menores_no_bloquea(self):
+    def test_solo_hallazgos_menores_no_bloquea(self):
         self.colocar_limpios()
         codigo, resumen, _ = self.ejecutar()
         self.assertEqual(codigo, 0)
@@ -155,7 +155,7 @@ class TestEscenarios(BaseGate):
         self.assertIn("lab-csrf-disabled", resumen)  # warning listado como no bloqueante
         self.assertIn("java/log-injection", resumen)  # CodeQL 5.0 listado como no bloqueante
 
-    def test_qg04_spotbugs_security_prioridad_2_bloquea(self):
+    def test_spotbugs_security_prioridad_2_bloquea(self):
         self.colocar_limpios(spotbugs="spotbugs_rojo.xml")
         codigo, resumen, _ = self.ejecutar()
         self.assertEqual(codigo, 1)
@@ -163,33 +163,33 @@ class TestEscenarios(BaseGate):
         bloque_no_bloqueantes = resumen.split("### Hallazgos no bloqueantes", 1)[1]
         self.assertIn("SPRING_ENDPOINT", bloque_no_bloqueantes)
 
-    def test_qg05_vulnerabilidad_suprimida_no_bloquea(self):
+    def test_vulnerabilidad_suprimida_no_bloquea(self):
         self.colocar_limpios(dependency_check="dc_suprimido.json")
         codigo, resumen, _ = self.ejecutar()
         self.assertEqual(codigo, 0)
         self.assertIn("Vulnerabilidades suprimidas", resumen)
         self.assertIn("CVE-2022-42889", resumen)
 
-    def test_qg06_reporte_faltante_fail_closed(self):
+    def test_reporte_faltante_fail_closed(self):
         self.colocar_limpios(trivy=None)
         codigo, resumen, _ = self.ejecutar()
         self.assertEqual(codigo, 2)
         self.assertIn("reporte faltante", resumen)
 
-    def test_qg06_reporte_vacio_fail_closed(self):
+    def test_reporte_vacio_fail_closed(self):
         self.colocar_limpios()
         (self.dir / NOMBRES["trivy"]).write_text("", encoding="utf-8")
         codigo, resumen, _ = self.ejecutar()
         self.assertEqual(codigo, 2)
         self.assertIn("reporte ilegible", resumen)
 
-    def test_qg07_reporte_corrupto_fail_closed(self):
+    def test_reporte_corrupto_fail_closed(self):
         self.colocar_limpios(semgrep="corrupto.sarif")
         codigo, resumen, _ = self.ejecutar()
         self.assertEqual(codigo, 2)
         self.assertIn("reporte ilegible", resumen)
 
-    def test_qg08_build_roto_bloquea(self):
+    def test_build_roto_bloquea(self):
         self.colocar_limpios()
         needs = dict(NEEDS_OK, **{"build-test": {"result": "failure", "outputs": {}}})
         codigo, resumen, salida = self.ejecutar("--needs-json", json.dumps(needs))
@@ -197,7 +197,7 @@ class TestEscenarios(BaseGate):
         self.assertIn("build-test", resumen)
         self.assertIn("failure", salida)
 
-    def test_qg09_job_requerido_omitido_falla(self):
+    def test_job_requerido_omitido_falla(self):
         self.colocar_limpios(dependency_check=None)
         needs = dict(NEEDS_OK, **{"sca-dependency-check": {"result": "skipped", "outputs": {}}})
         codigo, _, _ = self.ejecutar(
@@ -205,18 +205,18 @@ class TestEscenarios(BaseGate):
         )
         self.assertNotEqual(codigo, 0)
 
-    def test_qg10_push_feature_no_exige_dependency_check(self):
+    def test_push_feature_no_exige_dependency_check(self):
         self.colocar_limpios(dependency_check=None)
         needs = dict(NEEDS_OK, **{"sca-dependency-check": {"result": "skipped", "outputs": {}}})
         codigo, _, _ = self.ejecutar("--required", "semgrep,codeql,spotbugs,trivy", "--needs-json", json.dumps(needs))
         self.assertEqual(codigo, 0)
 
-    def test_qg10_push_feature_si_exige_trivy(self):
+    def test_push_feature_si_exige_trivy(self):
         self.colocar_limpios(dependency_check=None, trivy=None)
         codigo, _, _ = self.ejecutar("--required", "semgrep,codeql,spotbugs,trivy")
         self.assertEqual(codigo, 2)
 
-    def test_qg11_tabla_con_un_hallazgo_por_herramienta(self):
+    def test_tabla_con_un_hallazgo_por_herramienta(self):
         self.colocar(
             semgrep="semgrep_rojo.sarif",
             codeql="codeql_rojo.sarif",
@@ -231,7 +231,7 @@ class TestEscenarios(BaseGate):
         for herramienta in ("semgrep", "codeql", "spotbugs", "dependency-check", "trivy"):
             self.assertIn(f"| {herramienta} |", tabla)
 
-    def test_qg12_reportes_limpios_aprueba(self):
+    def test_reportes_limpios_aprueba(self):
         self.colocar_limpios()
         codigo, resumen, _ = self.ejecutar("--needs-json", json.dumps(NEEDS_OK))
         self.assertEqual(codigo, 0)
@@ -250,13 +250,13 @@ class TestEscenarios(BaseGate):
 
 
 class TestImagen(BaseGate):
-    def test_cd04_libreria_o_so_corregible_high_bloquea(self):
+    def test_libreria_o_so_corregible_high_bloquea(self):
         self.colocar(trivy_imagen_os="trivy_imagen_os_high.json", trivy_imagen_app="trivy_imagen_app_limpio.json")
         codigo, resumen, _ = self.ejecutar("--only", "trivy-imagen")
         self.assertEqual(codigo, 1)
         self.assertIn("CVE-2099-1000", resumen)
 
-    def test_cd08_so_sin_correccion_filtrado_no_bloquea(self):
+    def test_so_sin_correccion_filtrado_no_bloquea(self):
         # La pasada del SO llega ya filtrada por --ignore-unfixed: sin vulnerabilidades.
         self.colocar(trivy_imagen_os="trivy_imagen_os_limpio.json", trivy_imagen_app="trivy_imagen_app_limpio.json")
         codigo, resumen, _ = self.ejecutar("--only", "trivy-imagen")
@@ -271,7 +271,7 @@ class TestImagen(BaseGate):
 
 
 class TestEndurecimiento(BaseGate):
-    """Casos añadidos en la auditoría de ejecución (fase 4)."""
+    """Casos de endurecimiento: CVSS v4/v2, jobs cancelados, entradas inválidas e inyección."""
 
     def escribir(self, nombre, datos):
         ruta = self.dir / nombre

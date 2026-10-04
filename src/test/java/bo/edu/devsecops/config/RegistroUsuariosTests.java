@@ -9,7 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Credenciales externas (APP-16, design.md D5): sin variable de entorno o con un valor que no
+ * Credenciales externas: sin variable de entorno o con un valor que no
  * es bcrypt, el usuario no existe; nunca se usa una contraseña por defecto ni un hash conocido.
  */
 class RegistroUsuariosTests {

@@ -1,14 +1,13 @@
 # Comparación del análisis SCA
 
-Plantilla de la guía 02 §13, completada para el Laboratorio 3 (change
-`remediate-app-vulnerabilities`, escenario APP-22). Los datos de los runs de GitHub Actions
-se completaron en la fase 6 (E2E en GitHub, 2026-10-04).
+Plantilla de la guía 02 §13, completada para el Laboratorio 3. Los datos de los runs de
+GitHub Actions corresponden a la ejecución de extremo a extremo en GitHub (2026-10-04).
 
 ## Identificación
 
 - Autor: Andrés Fidel Rada Rojas (trabajo individual)
 - Repositorio: https://github.com/FidelRada/spring-boot-webapi-secure (fork de `pablovillazon/spring-boot-webapi-secure`)
-- Commit anterior: `8acb79d` (ROJO_FINAL publicado: pipeline `1a9980a` + fix de auditoría `442fd98`/`8acb79d`, mismo `src/` y `pom.xml` que `1a9980a`)
+- Commit anterior: `8acb79d` (ROJO_FINAL publicado: pipeline `1a9980a` + corrección del pipeline `442fd98`/`8acb79d`, mismo `src/` y `pom.xml` que `1a9980a`)
 - Commit posterior: `cc5f4cc` (HEAD de `feature/lab3-ci-seguro`; la corrección SCA es `c0fe5cf` — `fix(deps): commons-text 1.10.0 y CVE transitivos`)
 - Ejecución anterior: run `pull_request` [37226787496](https://github.com/FidelRada/spring-boot-webapi-secure/actions/runs/37226787496) (gate en failure) y run `push` [37226599366](https://github.com/FidelRada/spring-boot-webapi-secure/actions/runs/37226599366)
 - Ejecución posterior: run `pull_request` [37227469858](https://github.com/FidelRada/spring-boot-webapi-secure/actions/runs/37227469858) (gate en success), run `push` [37227467114](https://github.com/FidelRada/spring-boot-webapi-secure/actions/runs/37227467114) y nightly [37227684557](https://github.com/FidelRada/spring-boot-webapi-secure/actions/runs/37227684557)
@@ -47,7 +46,7 @@ Resumen de Trivy sobre el SBOM (local):
    - Ningún umbral cambió: Trivy sigue sin `--ignore-unfixed`, DC sigue con `failBuildOnCVSS=7` y el gate con CVSS ≥ 7.0 / HIGH / CRITICAL.
 
 3. **¿Qué pruebas se ejecutaron para verificar compatibilidad?**
-   `mvn -B clean verify` con 24 pruebas en verde: las 2 originales (una ajustada a 401), 17 de `SecurityRemediationTests`, 2 de `ErroresSinStacktraceTests` y 3 de `config/RegistroUsuariosTests` (añadidas en la auditoría de ejecución, commit `bd0019e`, antes `8c7d9f7`). Además, arranque local de la aplicación y los comandos curl del README (CSRF, HTTP Basic, actuator, H2).
+   `mvn -B clean verify` con 24 pruebas en verde: las 2 originales (una ajustada a 401), 17 de `SecurityRemediationTests`, 2 de `ErroresSinStacktraceTests` y 3 de `config/RegistroUsuariosTests` (commit `bd0019e`, antes `8c7d9f7`). Además, arranque local de la aplicación y los comandos curl del README (CSRF, HTTP Basic, actuator, H2).
 
 4. **¿Qué evidencia muestra que desapareció el hallazgo seleccionado?**
    - `evidencias/locales/antes/sbom-trivy/sca-report.json` contiene CVE-2022-42889 y `evidencias/locales/despues/sbom-trivy/sca-report.json` no lo contiene (carpeta del laboratorio).

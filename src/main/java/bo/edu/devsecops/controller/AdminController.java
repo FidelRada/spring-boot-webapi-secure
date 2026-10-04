@@ -28,7 +28,7 @@ public class AdminController {
             return jdbcTemplate.queryForMap(
                     "SELECT id, username, email, role FROM users WHERE id = ?", id);
         } catch (EmptyResultDataAccessException e) {
-            // 404 sin detalles internos (APP-09).
+            // 404 sin detalles internos.
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado");
         }
     }

@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 /**
- * Expone el token CSRF de la sesión para los clientes de la API (design.md D4):
+ * Expone el token CSRF de la sesión para los clientes de la API:
  * GET /api/csrf → {"headerName":"X-CSRF-TOKEN","token":"..."} + cookie JSESSIONID.
  */
 @RestController

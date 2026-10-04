@@ -19,7 +19,7 @@ import java.util.Map;
 
 /**
  * Login contra el almacén de usuarios (bcrypt). No hay secretos en el código, la respuesta
- * no devuelve claves de firma y el log nunca incluye la contraseña (design.md D5).
+ * no devuelve claves de firma y el log nunca incluye la contraseña.
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -56,7 +56,7 @@ public class AuthController {
         }
     }
 
-    /** Neutraliza CR/LF para impedir la inyección de líneas falsas en el log (APP-15). */
+    /** Neutraliza CR/LF para impedir la inyección de líneas falsas en el log. */
     private static String neutralizar(String valor) {
         return valor.replace("\r", "_").replace("\n", "_");
     }

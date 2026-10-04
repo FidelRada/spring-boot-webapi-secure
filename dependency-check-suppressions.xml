@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   Supresiones de OWASP Dependency-Check.
-  Política (design.md D2/D7, spec SCA-05 y APP-21):
+  Política:
     - Solo se suprimen falsos positivos demostrables o hallazgos no aplicables, y solo
       cuando no existe una versión corregida publicada (si existe, se actualiza: así se
       corrigieron commons-text, tomcat, jackson, micrometer y log4j).
@@ -9,7 +9,7 @@
       caduca con el atributo until (máximo 90 días): al vencer, el hallazgo vuelve a bloquear
       y hay que revisarlo de nuevo.
     - Nunca se usa una supresión para ocultar una vulnerabilidad explotable ni se sube el umbral.
-  Revisión: 2026-10-04 (fase 3, ejecutor). Vencimiento: 2026-12-31.
+  Revisión: 2026-10-04 (Andrés Fidel Rada Rojas). Vencimiento: 2026-12-31.
 -->
 <suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
     <suppress until="2026-12-31Z">
