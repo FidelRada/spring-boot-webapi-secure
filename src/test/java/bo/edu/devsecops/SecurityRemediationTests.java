@@ -89,6 +89,16 @@ class SecurityRemediationTests {
 
     // ------------------------------------------------------------------- XSS
 
+    @Test
+    @DisplayName("APP-04 El script reflejado se codifica para HTML")
+    void previewEscapaScript() throws Exception {
+        mockMvc.perform(post("/api/comments/preview").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"comment\":\"<script>alert(1)</script>\"}"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("&lt;script&gt;alert(1)&lt;/script&gt;")))
+                .andExpect(content().string(not(containsString("<script>"))));
+    }
 
 
     // ------------------------------------------------------- Autorización
