@@ -100,17 +100,85 @@ class SecurityRemediationTests {
                 .andExpect(content().string(not(containsString("<script>"))));
     }
 
+    @Test
+    @DisplayName("APP-05 La vista previa lleva nosniff y una CSP restrictiva")
+    void previewIncluyeCabecerasDeDefensa() throws Exception {
+        mockMvc.perform(post("/api/comments/preview").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"comment\":\"hola\"}"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(header().string("Content-Security-Policy", containsString("default-src 'none'")));
+    }
 
     // ------------------------------------------------------- Autorización
 
+    @Test
+    @DisplayName("APP-06 Administración sin credenciales: 401 y sin datos")
+    void adminAnonimoRecibe401() throws Exception {
+        mockMvc.perform(get("/api/admin/users/1"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().string(not(containsString("admin@lab.local"))));
+    }
 
+    @Test
+    @DisplayName("APP-07 Usuario con rol USER: 403")
+    void adminConRolUserRecibe403() throws Exception {
+        mockMvc.perform(get("/api/admin/users/1").with(httpBasic(ANA, CLAVE_ANA_PRUEBA)))
+                .andExpect(status().isForbidden());
+    }
 
+    @Test
+    @DisplayName("APP-08 Administrador autorizado: 200 con el usuario ana")
+    void adminConRolAdminRecibe200() throws Exception {
+        mockMvc.perform(get("/api/admin/users/2").with(httpBasic(ADMIN, CLAVE_ADMIN_PRUEBA)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("ana@lab.local")));
+    }
 
+    @Test
+    @DisplayName("APP-09 Identificador inexistente: 404 sin detalle de la excepción")
+    void adminIdInexistenteRecibe404() throws Exception {
+        mockMvc.perform(get("/api/admin/users/999").with(httpBasic(ADMIN, CLAVE_ADMIN_PRUEBA)))
+                .andExpect(status().isNotFound())
+                .andExpect(content().string(not(containsString("EmptyResultDataAccessException"))));
+    }
 
+    @Test
+    @DisplayName("APP-10 Una ruta no declarada exige autenticación")
+    void rutaNoDeclaradaExigeAutenticacion() throws Exception {
+        mockMvc.perform(get("/api/otra-ruta"))
+                .andExpect(status().isUnauthorized());
+    }
 
     // ------------------------------------------------------------------ CSRF
 
+    @Test
+    @DisplayName("APP-11 POST sin token CSRF: 403")
+    void postSinTokenCsrfRecibe403() throws Exception {
+        mockMvc.perform(post("/api/comments/preview")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"comment\":\"hola\"}"))
+                .andExpect(status().isForbidden());
+    }
 
+    @Test
+    @DisplayName("APP-12 POST con el token de GET /api/csrf y la sesión: 200")
+    void postConTokenCsrfRecibe200() throws Exception {
+        MvcResult respuesta = mockMvc.perform(get("/api/csrf"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.headerName").value("X-CSRF-TOKEN"))
+                .andReturn();
+        JsonNode cuerpo = json.readTree(respuesta.getResponse().getContentAsString());
+        MockHttpSession sesion = (MockHttpSession) respuesta.getRequest().getSession(false);
+        assertThat(sesion).as("GET /api/csrf debe crear la sesión").isNotNull();
+
+        mockMvc.perform(post("/api/comments/preview").session(sesion)
+                        .header(cuerpo.get("headerName").asText(), cuerpo.get("token").asText())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"comment\":\"hola\"}"))
+                .andExpect(status().isOk());
+    }
 
     // ---------------------------------------------------------------- Login
 
