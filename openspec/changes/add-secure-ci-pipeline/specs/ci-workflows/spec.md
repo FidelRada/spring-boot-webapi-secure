@@ -65,11 +65,11 @@ Todos los jobs que compilan SHALL usar Java 21 (Temurin) igual que `pom.xml` y e
 - **THEN** ningún paso falla con "Unable to resolve action" ni por una versión inexistente
 
 ### Requirement: Permisos mínimos
-Cada workflow SHALL declarar `permissions: contents: read` a nivel de workflow. Como un workflow reutilizable solo puede reducir los permisos que recibe del caller, cada job caller SHALL conceder exactamente los que necesita el reutilizable (`actions: read` y `security-events: write`; `packages: write` solo en `ci-cd-sec.yml`), y cada job del reutilizable SHALL declarar solo los que usa.
+Cada workflow caller (`ci-sec.yml`, `ci-cd-sec.yml`, `ci-sec-nightly.yml`) SHALL declarar `permissions: contents: read` a nivel de workflow; el reutilizable `security-scans.yml` MUST NOT declarar permisos a nivel de workflow, porque ese nivel se aplicaría al job de imagen (que no declara los suyos) y le quitaría `packages: write` y `security-events: write`. Como un workflow reutilizable solo puede reducir los permisos que recibe del caller, cada job caller SHALL conceder exactamente los que necesita el reutilizable (`actions: read` y `security-events: write`; `packages: write` solo en `ci-cd-sec.yml`), y cada job del reutilizable SHALL declarar solo los que usa.
 
 #### Scenario: CIW-11 Revisión de permisos
 - **WHEN** se inspeccionan los bloques `permissions` de los cuatro workflows
-- **THEN** el nivel de workflow es `contents: read` en los cuatro, `packages: write` aparece solo en el job caller de `ci-cd-sec.yml` (el job de imagen del reutilizable no declara permisos y lo hereda solo de ese caller, porque un job anidado no puede pedir más de lo concedido), y `security-events: write` solo en los jobs que suben SARIF y en los callers
+- **THEN** el nivel de workflow es `contents: read` en los tres callers y no existe en `security-scans.yml`, todos los jobs del reutilizable salvo `imagen` declaran sus permisos, `packages: write` aparece solo en el job caller de `ci-cd-sec.yml` (el job de imagen del reutilizable no declara permisos y lo hereda solo de ese caller, porque un job anidado no puede pedir más de lo concedido), y `security-events: write` solo en los jobs que suben SARIF y en los callers
 
 ### Requirement: Checks identificables por evento
 Los nombres de los checks SHALL incluir el evento o el workflow de origen, de modo que los runs de `push` y `pull_request` no colisionen y el ruleset pueda exigir un check concreto.

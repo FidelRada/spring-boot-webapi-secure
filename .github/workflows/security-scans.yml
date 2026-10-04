@@ -24,8 +24,17 @@ on:
         description: Clave de la API de la NVD para Dependency-Check
         required: false
 
-permissions:
-  contents: read
+# Sin bloque "permissions" a nivel de workflow A PROPÓSITO (hallazgo A-01 de la auditoría de
+# ejecución): en un reutilizable, el nivel de workflow se aplica a todo job que no declare el
+# suyo, así que "contents: read" aquí dejaba al job "imagen" sin packages/security-events y
+# rompía el push a GHCR y la subida del SARIF. Cada job declara sus permisos mínimos salvo
+# "imagen", que hereda exactamente lo que concede el job caller (packages: write solo desde
+# ci-cd-sec.yml). Los tres callers sí fijan "contents: read" a nivel de workflow.
+
+# bash con -o pipefail: un fallo técnico de Semgrep no queda oculto por "| tee".
+defaults:
+  run:
+    shell: bash
 
 env:
   JAVA_VERSION: '21'
@@ -202,20 +211,32 @@ jobs:
           mvn -B org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom
           test -s target/bom.json
 
+      # Caché diaria de las bases de Trivy (vulnerabilidades y Java DB) entre ejecuciones.
+      - name: Calcular día para la caché de Trivy
+        id: dia
+        run: echo "valor=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+
+      - name: Restaurar caché de Trivy
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/trivy-cache
+          key: trivy-db-${{ runner.os }}-${{ steps.dia.outputs.valor }}
+          restore-keys: |
+            trivy-db-${{ runner.os }}-
+
       # Reporte completo, sin --ignore-unfixed (guía 02 §9). El bloqueo lo decide el gate.
+      # Se ejecuta con el usuario del runner para que la caché sea legible por actions/cache.
       - name: Analizar el SBOM con Trivy
         run: |
           mkdir -p "$RUNNER_TEMP/trivy-cache" reporte-trivy-sbom
-          docker run --rm \
-            -v "$GITHUB_WORKSPACE/target:/work" \
-            -v "$RUNNER_TEMP/trivy-cache:/root/.cache/trivy" \
-            "$TRIVY_IMAGE" sbom --scanners vuln --exit-code 0 \
-            --format json --output /work/sca-report.json /work/bom.json
-          docker run --rm \
-            -v "$GITHUB_WORKSPACE/target:/work" \
-            -v "$RUNNER_TEMP/trivy-cache:/root/.cache/trivy" \
-            "$TRIVY_IMAGE" sbom --scanners vuln --skip-db-update --exit-code 0 \
-            --format table --output /work/sca-report.txt /work/bom.json
+          trivy() {
+            docker run --rm --user "$(id -u):$(id -g)" \
+              -v "$GITHUB_WORKSPACE/target:/work" \
+              -v "$RUNNER_TEMP/trivy-cache:/cache" \
+              "$TRIVY_IMAGE" sbom --cache-dir /cache "$@" /work/bom.json
+          }
+          trivy --scanners vuln --exit-code 0 --format json --output /work/sca-report.json
+          trivy --scanners vuln --skip-db-update --exit-code 0 --format table --output /work/sca-report.txt
           cp target/bom.json target/sca-report.json target/sca-report.txt reporte-trivy-sbom/
 
       - name: Publicar SBOM y reporte de Trivy
@@ -343,10 +364,10 @@ jobs:
     if: ${{ inputs.build_image }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Sin bloque "permissions" a propósito: un reutilizable solo puede reducir los permisos
-    # del caller y GitHub valida al cargar el workflow que ningún job pida más de lo
-    # concedido. Así el job hereda exactamente lo que da cada caller: contents/actions read
-    # y security-events write en todos, y packages write solo desde ci-cd-sec.yml.
+    # Sin bloque "permissions" a propósito: GitHub valida al cargar el workflow que ningún job
+    # anidado pida más de lo concedido por el caller, y este reutilizable tampoco tiene nivel
+    # de workflow (ver arriba). Así el job hereda exactamente lo que da cada caller:
+    # contents/actions read y security-events write, y packages write solo desde ci-cd-sec.yml.
     env:
       IMAGEN_LOCAL: lab3-ci:${{ github.sha }}
     steps:
@@ -356,11 +377,16 @@ jobs:
       - name: Configurar Buildx
         uses: docker/setup-buildx-action@v4
 
+      # GHCR exige el nombre en minúsculas (el propietario es "FidelRada").
+      - name: Nombre de la imagen en minúsculas
+        id: nombre
+        run: echo "imagen=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
       - name: Metadatos de la imagen
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ${{ steps.nombre.outputs.imagen }}
           tags: |
             type=sha,prefix=sha-
             type=ref,event=branch
@@ -377,17 +403,32 @@ jobs:
             ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
+      - name: Calcular día para la caché de Trivy
+        id: dia
+        run: echo "valor=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+
+      - name: Restaurar caché de Trivy
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/trivy-cache
+          key: trivy-db-${{ runner.os }}-${{ steps.dia.outputs.valor }}
+          restore-keys: |
+            trivy-db-${{ runner.os }}-
+
       # Dos pasadas (design.md D5): SO con --ignore-unfixed (única excepción aprobada, CD-08)
       # y librerías de la app sin filtro. Además, SARIF completo sin filtros.
+      # La imagen se exporta a un tar y Trivy la lee con --input: no necesita el socket de
+      # Docker y corre con el usuario del runner (caché legible por actions/cache).
       - name: Escanear imagen con Trivy
         run: |
-          mkdir -p "$RUNNER_TEMP/trivy-cache" reporte-trivy-imagen
+          mkdir -p "$RUNNER_TEMP/trivy-cache" "$RUNNER_TEMP/imagen" reporte-trivy-imagen
+          docker save -o "$RUNNER_TEMP/imagen/imagen.tar" "$IMAGEN_LOCAL"
           trivy() {
-            docker run --rm \
-              -v /var/run/docker.sock:/var/run/docker.sock \
-              -v "$RUNNER_TEMP/trivy-cache:/root/.cache/trivy" \
+            docker run --rm --user "$(id -u):$(id -g)" \
+              -v "$RUNNER_TEMP/imagen:/img:ro" \
+              -v "$RUNNER_TEMP/trivy-cache:/cache" \
               -v "$GITHUB_WORKSPACE/reporte-trivy-imagen:/out" \
-              "$TRIVY_IMAGE" image "$@" "$IMAGEN_LOCAL"
+              "$TRIVY_IMAGE" image --cache-dir /cache --input /img/imagen.tar "$@"
           }
           trivy --scanners vuln --pkg-types os --ignore-unfixed --exit-code 0 \
             --format json --output /out/trivy-imagen-os.json
