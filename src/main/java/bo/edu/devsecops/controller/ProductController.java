@@ -25,8 +25,9 @@ public class ProductController {
 
     @GetMapping("/search")
     public List<Map<String, Object>> search(@RequestParam(defaultValue = "") String name) {
-        String literal = escaparComodines(name);
-        return jdbcTemplate.queryForList(CONSULTA_BUSQUEDA, "%" + literal + "%");
+        // REGRESIÓN DELIBERADA (BP-05): concatenación de la entrada del usuario en el SQL
+        String sql = "SELECT id, name, price FROM products WHERE name LIKE '%" + name + "%'";
+        return jdbcTemplate.queryForList(sql);
     }
 
     /** Los comodines de LIKE escritos por el usuario se tratan como caracteres literales. */
