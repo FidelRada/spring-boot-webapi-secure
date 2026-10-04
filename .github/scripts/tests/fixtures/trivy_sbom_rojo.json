@@ -1,0 +1,41 @@
+{
+ "SchemaVersion": 2,
+ "Trivy": {
+  "Version": "0.74.0"
+ },
+ "ReportID": "01a107c1-6cad-7034-8bc3-c52779fd19a7",
+ "CreatedAt": "2026-10-04T16:31:19.213017774Z",
+ "ArtifactName": "/work/bom.json",
+ "ArtifactType": "cyclonedx",
+ "Results": [
+  {
+   "Target": "Java",
+   "Class": "lang-pkgs",
+   "Type": "jar",
+   "Vulnerabilities": [
+    {
+     "VulnerabilityID": "CVE-2022-42889",
+     "VendorIDs": [
+      "GHSA-599f-7c49-w659"
+     ],
+     "PkgID": "org.apache.commons:commons-text:1.9",
+     "PkgName": "org.apache.commons:commons-text",
+     "PkgIdentifier": {
+      "PURL": "pkg:maven/org.apache.commons/commons-text@1.9?type=jar",
+      "UID": "efc6f4cea140273c",
+      "BOMRef": "pkg:maven/org.apache.commons/commons-text@1.9?type=jar"
+     },
+     "InstalledVersion": "1.9",
+     "FixedVersion": "1.10.0",
+     "Status": "fixed",
+     "SeveritySource": "ghsa",
+     "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2022-42889",
+     "Title": "apache-commons-text: variable interpolation RCE",
+     "Severity": "CRITICAL",
+     "PublishedDate": "2022-10-13T13:15:10.113Z",
+     "LastModifiedDate": "2026-06-17T05:05:31.85Z"
+    }
+   ]
+  }
+ ]
+}

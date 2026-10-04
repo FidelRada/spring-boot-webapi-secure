@@ -1,0 +1,442 @@
+# Batería de seguridad reutilizable (change add-secure-ci-pipeline, design.md D1–D5).
+# La invocan ci-sec.yml, ci-cd-sec.yml y ci-sec-nightly.yml. Los escáneres solo fallan por
+# errores técnicos; la decisión por hallazgos la toma exclusivamente el job "Quality Gate",
+# que LEE los reportes (quality_gate.py) y es fail-closed.
+name: Security scans (reutilizable)
+
+on:
+  workflow_call:
+    inputs:
+      run_dependency_check:
+        description: Ejecutar OWASP Dependency-Check (PR, CI/CD y nightly)
+        type: boolean
+        default: false
+      build_image:
+        description: Construir y escanear la imagen de contenedor
+        type: boolean
+        default: false
+      push_image:
+        description: Publicar la imagen en GHCR (solo main)
+        type: boolean
+        default: false
+    secrets:
+      NVD_API_KEY:
+        description: Clave de la API de la NVD para Dependency-Check
+        required: false
+
+permissions:
+  contents: read
+
+env:
+  JAVA_VERSION: '21'
+  SEMGREP_IMAGE: semgrep/semgrep:1.179.0
+  TRIVY_IMAGE: aquasec/trivy:0.74.0
+
+jobs:
+  build-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Obtener código
+        uses: actions/checkout@v7
+
+      - name: Configurar Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Compilar y ejecutar pruebas (JaCoCo)
+        run: mvn -B clean verify
+
+      - name: Publicar reportes de pruebas
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: reporte-tests
+          path: |
+            target/surefire-reports/
+            target/site/jacoco/
+          if-no-files-found: error
+          retention-days: 7
+
+  sast-semgrep:
+    name: SAST - Semgrep
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Obtener código
+        uses: actions/checkout@v7
+
+      # --metrics=off con rulesets explícitos: --config auto exige métricas (design.md D2).
+      # Sin --error: Semgrep termina en 0 con hallazgos y en >= 2 solo ante errores técnicos.
+      - name: Ejecutar Semgrep
+        run: |
+          mkdir -p reporte-semgrep
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+            -v "$GITHUB_WORKSPACE:/src" -w /src "$SEMGREP_IMAGE" \
+            semgrep scan --metrics=off \
+              --config p/java --config p/owasp-top-ten --config p/secrets \
+              --config .semgrep.yml \
+              --sarif-output=reporte-semgrep/semgrep.sarif \
+              --json-output=reporte-semgrep/semgrep.json \
+              src/main/java | tee reporte-semgrep/semgrep.txt
+
+      - name: Subir SARIF a Code scanning
+        if: ${{ !cancelled() }}
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: reporte-semgrep/semgrep.sarif
+          category: semgrep
+
+      - name: Publicar reporte de Semgrep
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: reporte-semgrep
+          path: reporte-semgrep/
+          if-no-files-found: error
+          retention-days: 7
+
+  sast-codeql:
+    name: SAST - CodeQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    steps:
+      - name: Obtener código
+        uses: actions/checkout@v7
+
+      - name: Inicializar CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: java-kotlin
+          build-mode: none
+          queries: security-and-quality
+
+      - name: Analizar con CodeQL
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:java-kotlin
+          output: sarif-results
+
+      - name: Preparar reporte para el gate
+        run: |
+          mkdir -p reporte-codeql
+          mapfile -t sarifs < <(find sarif-results -name '*.sarif')
+          test "${#sarifs[@]}" -eq 1
+          cp "${sarifs[0]}" reporte-codeql/codeql.sarif
+
+      - name: Publicar reporte de CodeQL
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: reporte-codeql
+          path: reporte-codeql/
+          if-no-files-found: error
+          retention-days: 7
+
+  sast-spotbugs:
+    name: SAST - SpotBugs + FindSecBugs
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Obtener código
+        uses: actions/checkout@v7
+
+      - name: Configurar Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      # Goal "spotbugs" (no "check"): genera el reporte sin abortar por hallazgos.
+      - name: Ejecutar SpotBugs 4.9.8.5 + FindSecBugs 1.14.0
+        run: |
+          mvn -B compile com.github.spotbugs:spotbugs-maven-plugin:spotbugs
+          test -s target/spotbugsXml.xml
+
+      - name: Publicar reporte de SpotBugs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: reporte-spotbugs
+          path: |
+            target/spotbugsXml.xml
+            target/site/spotbugs.html
+          if-no-files-found: error
+          retention-days: 7
+
+  sca-sbom-trivy:
+    name: SCA - SBOM y vulnerabilidades
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - name: Obtener código
+        uses: actions/checkout@v7
+
+      - name: Configurar Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Generar SBOM CycloneDX 1.6
+        run: |
+          mvn -B org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom
+          test -s target/bom.json
+
+      # Reporte completo, sin --ignore-unfixed (guía 02 §9). El bloqueo lo decide el gate.
+      - name: Analizar el SBOM con Trivy
+        run: |
+          mkdir -p "$RUNNER_TEMP/trivy-cache" reporte-trivy-sbom
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE/target:/work" \
+            -v "$RUNNER_TEMP/trivy-cache:/root/.cache/trivy" \
+            "$TRIVY_IMAGE" sbom --scanners vuln --exit-code 0 \
+            --format json --output /work/sca-report.json /work/bom.json
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE/target:/work" \
+            -v "$RUNNER_TEMP/trivy-cache:/root/.cache/trivy" \
+            "$TRIVY_IMAGE" sbom --scanners vuln --skip-db-update --exit-code 0 \
+            --format table --output /work/sca-report.txt /work/bom.json
+          cp target/bom.json target/sca-report.json target/sca-report.txt reporte-trivy-sbom/
+
+      - name: Publicar SBOM y reporte de Trivy
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: reporte-trivy-sbom
+          path: reporte-trivy-sbom/
+          if-no-files-found: error
+          retention-days: 7
+
+  sca-dependency-check:
+    name: SCA - OWASP Dependency-Check
+    if: ${{ inputs.run_dependency_check }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      security-events: write
+    env:
+      NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+      DO_NOT_TRACK: 'true'
+    steps:
+      - name: Obtener código
+        uses: actions/checkout@v7
+
+      - name: Verificar que la clave NVD está disponible
+        run: |
+          if [ -z "$NVD_API_KEY" ]; then
+            echo "::error::Falta el secreto NVD_API_KEY (Actions o Dependabot)."
+            exit 1
+          fi
+
+      - name: Configurar Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Calcular semana para la caché de la NVD
+        id: semana
+        run: echo "valor=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+
+      - name: Restaurar caché de datos de Dependency-Check
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/dependency-check-data
+          key: dc-data-${{ runner.os }}-${{ steps.semana.outputs.valor }}
+          restore-keys: |
+            dc-data-${{ runner.os }}-
+
+      # -Ddc.failBuildOnCVSS=11: el plugin no aborta por hallazgos y escribe siempre los
+      # reportes completos; el umbral efectivo (CVSS >= 7.0) lo aplica el Quality Gate
+      # (design.md D2, spec SCA-08). No es un umbral relajado: el gate bloquea igual.
+      - name: Ejecutar OWASP Dependency-Check 13.0.0
+        run: mvn -B org.owasp:dependency-check-maven:check -Ddc.failBuildOnCVSS=11
+
+      - name: Subir SARIF a Code scanning
+        if: ${{ !cancelled() && hashFiles('target/dependency-check-report.sarif') != '' }}
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: target/dependency-check-report.sarif
+          category: dependency-check
+
+      - name: Publicar reportes de Dependency-Check
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: reporte-dependency-check
+          path: |
+            target/dependency-check-report.html
+            target/dependency-check-report.json
+            target/dependency-check-report.sarif
+          if-no-files-found: error
+          retention-days: 7
+
+  quality-gate:
+    name: Quality Gate
+    needs: [build-test, sast-semgrep, sast-codeql, sast-spotbugs, sca-sbom-trivy, sca-dependency-check]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    env:
+      NEEDS_JSON: ${{ toJSON(needs) }}
+      REQUERIDOS: ${{ inputs.run_dependency_check && 'semgrep,codeql,spotbugs,trivy,dependency-check' || 'semgrep,codeql,spotbugs,trivy' }}
+    steps:
+      - name: Obtener código
+        uses: actions/checkout@v7
+
+      - name: Descargar reportes
+        uses: actions/download-artifact@v8
+        with:
+          pattern: reporte-*
+          path: reportes
+
+      - name: Probar el gate (unittest)
+        run: python3 -m unittest discover -s .github/scripts/tests -v
+
+      - name: Evaluar reportes
+        run: |
+          mkdir -p reporte-quality-gate
+          python3 .github/scripts/quality_gate.py \
+            --reports-dir reportes \
+            --required "$REQUERIDOS" \
+            --needs-json "$NEEDS_JSON" \
+            --summary "$GITHUB_STEP_SUMMARY" \
+            --summary reporte-quality-gate/quality_gate.md
+
+      - name: Publicar resultado del gate
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: reporte-quality-gate
+          path: reporte-quality-gate/
+          if-no-files-found: error
+          retention-days: 7
+
+  imagen:
+    name: Imagen - build, Trivy y publicación
+    needs: quality-gate
+    if: ${{ inputs.build_image }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Sin bloque "permissions" a propósito: un reutilizable solo puede reducir los permisos
+    # del caller y GitHub valida al cargar el workflow que ningún job pida más de lo
+    # concedido. Así el job hereda exactamente lo que da cada caller: contents/actions read
+    # y security-events write en todos, y packages write solo desde ci-cd-sec.yml.
+    env:
+      IMAGEN_LOCAL: lab3-ci:${{ github.sha }}
+    steps:
+      - name: Obtener código
+        uses: actions/checkout@v7
+
+      - name: Configurar Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Metadatos de la imagen
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=sha,prefix=sha-
+            type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Construir imagen (sin publicar)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          push: false
+          tags: |
+            ${{ env.IMAGEN_LOCAL }}
+            ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      # Dos pasadas (design.md D5): SO con --ignore-unfixed (única excepción aprobada, CD-08)
+      # y librerías de la app sin filtro. Además, SARIF completo sin filtros.
+      - name: Escanear imagen con Trivy
+        run: |
+          mkdir -p "$RUNNER_TEMP/trivy-cache" reporte-trivy-imagen
+          trivy() {
+            docker run --rm \
+              -v /var/run/docker.sock:/var/run/docker.sock \
+              -v "$RUNNER_TEMP/trivy-cache:/root/.cache/trivy" \
+              -v "$GITHUB_WORKSPACE/reporte-trivy-imagen:/out" \
+              "$TRIVY_IMAGE" image "$@" "$IMAGEN_LOCAL"
+          }
+          trivy --scanners vuln --pkg-types os --ignore-unfixed --exit-code 0 \
+            --format json --output /out/trivy-imagen-os.json
+          trivy --scanners vuln --pkg-types library --skip-db-update --exit-code 0 \
+            --format json --output /out/trivy-imagen-app.json
+          trivy --scanners vuln --skip-db-update --exit-code 0 \
+            --format sarif --output /out/trivy-imagen.sarif
+          trivy --scanners vuln --skip-db-update --exit-code 0 \
+            --format table --output /out/trivy-imagen.txt
+
+      - name: Gate de la imagen
+        run: |
+          python3 .github/scripts/quality_gate.py \
+            --reports-dir reporte-trivy-imagen \
+            --only trivy-imagen \
+            --summary "$GITHUB_STEP_SUMMARY" \
+            --summary reporte-trivy-imagen/quality_gate_imagen.md
+
+      - name: Subir SARIF de la imagen a Code scanning
+        if: ${{ !cancelled() && hashFiles('reporte-trivy-imagen/trivy-imagen.sarif') != '' }}
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: reporte-trivy-imagen/trivy-imagen.sarif
+          category: trivy-imagen
+
+      - name: Publicar reportes de la imagen
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: reporte-trivy-imagen
+          path: reporte-trivy-imagen/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Iniciar sesión en GHCR
+        if: ${{ inputs.push_image }}
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publicar imagen en GHCR
+        if: ${{ inputs.push_image }}
+        env:
+          ETIQUETAS: ${{ steps.meta.outputs.tags }}
+        run: |
+          while IFS= read -r etiqueta; do
+            if [ -n "$etiqueta" ]; then
+              docker push "$etiqueta"
+            fi
+          done <<< "$ETIQUETAS"

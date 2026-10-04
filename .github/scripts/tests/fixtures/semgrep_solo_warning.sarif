@@ -1,0 +1,90 @@
+{
+ "version": "2.1.0",
+ "runs": [
+  {
+   "results": [
+    {
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "src/main/java/bo/edu/devsecops/config/SecurityConfig.java",
+         "uriBaseId": "%SRCROOT%"
+        },
+        "region": {
+         "endColumn": 45,
+         "endLine": 15,
+         "snippet": {
+          "text": "                .csrf(csrf -> csrf.disable())"
+         },
+         "startColumn": 31,
+         "startLine": 15
+        }
+       }
+      }
+     ],
+     "message": {
+      "text": "La proteccion CSRF esta deshabilitada."
+     },
+     "properties": {},
+     "ruleId": "lab-csrf-disabled"
+    },
+    {
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "src/main/java/bo/edu/devsecops/controller/AuthController.java",
+         "uriBaseId": "%SRCROOT%"
+        },
+        "region": {
+         "endColumn": 86,
+         "endLine": 26,
+         "snippet": {
+          "text": "        LOGGER.info(\"Intento de acceso: usuario={}, password={}\", username, password);"
+         },
+         "startColumn": 9,
+         "startLine": 26
+        }
+       }
+      }
+     ],
+     "message": {
+      "text": "Posible dato sensible escrito en el log."
+     },
+     "properties": {},
+     "ruleId": "lab-sensitive-data-in-log"
+    }
+   ],
+   "tool": {
+    "driver": {
+     "name": "Semgrep OSS",
+     "rules": [
+      {
+       "id": "lab-csrf-disabled",
+       "name": "lab-csrf-disabled",
+       "defaultConfiguration": {
+        "level": "warning"
+       },
+       "shortDescription": {
+        "text": "Semgrep Finding: lab-csrf-disabled"
+       }
+      },
+      {
+       "id": "lab-sensitive-data-in-log",
+       "name": "lab-sensitive-data-in-log",
+       "defaultConfiguration": {
+        "level": "warning"
+       },
+       "shortDescription": {
+        "text": "Semgrep Finding: lab-sensitive-data-in-log"
+       }
+      }
+     ],
+     "semanticVersion": "1.179.0"
+    }
+   }
+  }
+ ],
+ "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/schemas/sarif-schema-2.1.0.json"
+}

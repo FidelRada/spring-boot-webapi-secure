@@ -19,6 +19,11 @@
 
     <properties>
         <java.version>21</java.version>
+        <!-- Umbral CVSS de OWASP Dependency-Check. Se expone como propiedad para que
+             en el pipeline pueda pasarse -Ddc.failBuildOnCVSS=11 (el plugin no aborta y
+             escribe siempre los reportes; el Quality Gate aplica el umbral 7.0).
+             En local, sin override, el build falla con CVSS >= 7. -->
+        <dc.failBuildOnCVSS>7</dc.failBuildOnCVSS>
     </properties>
 
     <dependencies>
@@ -84,21 +89,47 @@
                     </execution>
                 </executions>
             </plugin>
-            <!-- OWASP Dependency-Check -->
+            <!-- OWASP Dependency-Check: la clave de la NVD se lee de la variable de entorno
+                 NVD_API_KEY (secreto de GitHub Actions/Dependabot o variable local); nunca
+                 se escribe en este archivo. -->
             <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>dependency-check-maven</artifactId>
-                <version>11.1.1</version>
+                <version>13.0.0</version>
                 <configuration>
-                    <failBuildOnCVSS>7</failBuildOnCVSS>
-                    <nvdApiKey>05028C6D-2870-4358-A719-5424DDA781B3</nvdApiKey>
+                    <failBuildOnCVSS>${dc.failBuildOnCVSS}</failBuildOnCVSS>
+                    <nvdApiKeyEnvironmentVariable>NVD_API_KEY</nvdApiKeyEnvironmentVariable>
+                    <dataDirectory>${user.home}/.cache/dependency-check-data</dataDirectory>
+                    <formats>
+                        <format>HTML</format>
+                        <format>JSON</format>
+                        <format>SARIF</format>
+                    </formats>
+                    <suppressionFiles>
+                        <suppressionFile>${project.basedir}/dependency-check-suppressions.xml</suppressionFile>
+                    </suppressionFiles>
+                    <!-- OSS Index migró a Sonatype Guide y exige credenciales; la fuente es la NVD. -->
+                    <ossIndexAnalyzerEnabled>false</ossIndexAnalyzerEnabled>
                 </configuration>
             </plugin>
-            <!-- SpotBugs -->
+            <!-- SpotBugs + FindSecBugs (4.9.8.5: 4.10.x exige Maven >= 3.8.9) -->
             <plugin>
                 <groupId>com.github.spotbugs</groupId>
                 <artifactId>spotbugs-maven-plugin</artifactId>
-                <version>4.8.6.2</version>
+                <version>4.9.8.5</version>
+                <configuration>
+                    <effort>Max</effort>
+                    <threshold>Low</threshold>
+                    <xmlOutput>true</xmlOutput>
+                    <htmlOutput>true</htmlOutput>
+                    <plugins>
+                        <plugin>
+                            <groupId>com.h3xstream.findsecbugs</groupId>
+                            <artifactId>findsecbugs-plugin</artifactId>
+                            <version>1.14.0</version>
+                        </plugin>
+                    </plugins>
+                </configuration>
             </plugin>
             <!-- CycloneDX BOM Generator -->
             <plugin>

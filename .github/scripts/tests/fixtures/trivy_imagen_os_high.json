@@ -1,0 +1,23 @@
+{
+ "SchemaVersion": 2,
+ "Trivy": {
+  "Version": "0.74.0"
+ },
+ "ArtifactName": "lab3:local",
+ "ArtifactType": "container_image",
+ "Results": [
+  {
+   "Target": "lab3:local (alpine 3.24.2)",
+   "Class": "os-pkgs",
+   "Vulnerabilities": [
+    {
+     "VulnerabilityID": "CVE-2099-1000",
+     "PkgName": "busybox",
+     "InstalledVersion": "1.37.0-r1",
+     "FixedVersion": "1.37.0-r2",
+     "Severity": "HIGH"
+    }
+   ]
+  }
+ ]
+}

@@ -50,6 +50,8 @@ Verificado en la auditoría (fase 2, 2026-10-04):
 | `ci-cd-sec.yml` | `contents: read`, `actions: read`, `security-events: write`, `packages: write` |
 | `ci-sec-nightly.yml` | `contents: read`, `actions: read`, `security-events: write` |
 
+Ajuste en la implementación (fase 3): GitHub valida al **cargar** el workflow que ningún job anidado pida un permiso mayor que el concedido por el caller, aunque el job vaya a quedar `skipped`. Si el job de imagen del reutilizable declarara `packages: write`, los runs de `ci-sec.yml` y del nightly (que no lo conceden) fallarían al arrancar. Por eso el job `imagen` **no declara** bloque `permissions` y hereda exactamente lo que concede cada caller: `packages: write` solo existe cuando lo llama `ci-cd-sec.yml`. El resto de jobs del reutilizable sí declaran sus permisos mínimos.
+
 ### D2. Jobs del reutilizable
 
 | Job (`name`) | Herramienta / comando | Artifact | Falla solo por |

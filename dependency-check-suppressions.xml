@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Supresiones de OWASP Dependency-Check.
+  Política (design.md D2/D7, spec SCA-05):
+    - Solo se suprimen falsos positivos demostrables o hallazgos no aplicables.
+    - Cada <suppress> debe ser específico (paquete + CVE), llevar una justificación
+      en <notes> y una fecha de caducidad en el atributo until (máximo 90 días).
+    - Nunca se usa una supresión para ocultar una vulnerabilidad real ni se sube el umbral.
+  En el commit ROJO no hay ninguna supresión: todos los hallazgos se muestran.
+-->
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+</suppressions>

@@ -31,7 +31,7 @@ El pipeline SHALL ejecutar OWASP Dependency-Check (`dependency-check-maven` 13.0
 La clave de la API de la NVD MUST provenir del secreto `NVD_API_KEY` (Actions y Dependabot) o de una variable de entorno local, y MUST NOT aparecer en ningún archivo versionado.
 
 #### Scenario: SCA-04 Sin clave en HEAD
-- **WHEN** se ejecuta `git grep -nE 'nvdApiKey>[0-9A-F-]{36}|05028C6D' HEAD`
+- **WHEN** se ejecuta `git grep -nE 'nvdApiKey>[0-9A-F-]{36}|0502[8]C6D' HEAD`
 - **THEN** no hay coincidencias y el job Dependency-Check obtiene la clave desde `secrets.NVD_API_KEY`
 
 ### Requirement: Supresiones justificadas
