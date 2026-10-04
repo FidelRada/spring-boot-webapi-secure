@@ -225,7 +225,28 @@ class SecurityRemediationTests {
 
     // ---------------------------------------------------------- Configuración
 
+    @Test
+    @DisplayName("APP-17 Actuator: health público, env no expuesto")
+    void actuatorSoloExponeHealth() throws Exception {
+        mockMvc.perform(get("/actuator/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"));
+        mockMvc.perform(get("/actuator/env"))
+                .andExpect(status().is(anyOf(is(401), is(404))))
+                .andExpect(content().string(not(containsString("LAB-DEMO-KEY"))));
+        // Ni siquiera un administrador puede leer el entorno: el endpoint no está expuesto.
+        mockMvc.perform(get("/actuator/env").with(httpBasic(ADMIN, CLAVE_ADMIN_PRUEBA)))
+                .andExpect(status().isNotFound());
+    }
 
+    @Test
+    @DisplayName("APP-18 Consola H2 deshabilitada")
+    void consolaH2Deshabilitada() throws Exception {
+        assertThat(contexto.containsBean("h2Console"))
+                .as("la consola H2 no debe registrarse como servlet").isFalse();
+        mockMvc.perform(get("/h2-console"))
+                .andExpect(status().is(anyOf(is(401), is(404))));
+    }
 
     private String credenciales(String usuario, String clave) throws Exception {
         return json.writeValueAsString(java.util.Map.of("username", usuario, "password", clave));

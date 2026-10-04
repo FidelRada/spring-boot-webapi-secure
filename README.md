@@ -1,7 +1,8 @@
 # Spring Boot DevSecOps Lab
 
-Aplicacion deliberadamente vulnerable para prácticas controladas de SAST, SCA,
-secret scanning, análisis de contenedores y DAST.
+Aplicación del laboratorio de DevSecOps, inicialmente vulnerable (SQLi, XSS, control de
+acceso roto, CSRF, secretos, configuración y dependencias) y remediada con el pipeline de
+seguridad de este repositorio (SAST, SCA, quality gate y protección de ramas).
 
 > **Advertencia:** ejecutar únicamente en `localhost` o en una red de laboratorio
 > aislada. No desplegar en Internet ni reutilizar credenciales reales.
@@ -15,36 +16,55 @@ secret scanning, análisis de contenedores y DAST.
 
 ## Iniciar la aplicación
 
+Las credenciales no están en el código: los usuarios `admin` (rol ADMIN) y `ana`
+(rol USER) se registran solo si se exporta el hash bcrypt de su contraseña.
+
 ```bash
-mvn clean verify
+# Generar un hash bcrypt (htpasswd viene en apache2-utils)
+export LAB_ADMIN_PASSWORD_HASH="$(htpasswd -bnBC 10 "" 'MiClaveAdmin' | tr -d ':\n')"
+export LAB_USER_PASSWORD_HASH="$(htpasswd -bnBC 10 "" 'MiClaveAna' | tr -d ':\n')"
+export LAB_EXTERNAL_API_KEY=...   # opcional
+
+mvn clean verify       # las pruebas usan el perfil "test" y no necesitan variables
 mvn spring-boot:run
 ```
+
+Sin esas variables la aplicación arranca igual (el healthcheck no necesita usuarios),
+pero `/api/admin/**` y el login no tendrán usuarios válidos.
 
 La aplicación estará disponible en `http://localhost:8080`.
 
 ## Endpoints del laboratorio
 
 ```text
-GET  /api/products/search?name=Laptop
-POST /api/comments/preview
-GET  /api/admin/users/1
-POST /api/auth/login
+GET  /api/products/search?name=Laptop   público
+POST /api/comments/preview              público, requiere token CSRF
+GET  /api/csrf                          público, devuelve el token CSRF y crea la sesión
+GET  /api/admin/users/1                 HTTP Basic, rol ADMIN
+POST /api/auth/login                    público, requiere token CSRF
+GET  /actuator/health                   público
 ```
 
-Ejemplo para la vista previa:
+Las peticiones `POST` exigen el token CSRF de la sesión:
 
 ```bash
+TOKEN=$(curl -s -c cookies.txt http://localhost:8080/api/csrf | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])')
+
 curl -X POST http://localhost:8080/api/comments/preview \
+  -b cookies.txt -H "X-CSRF-TOKEN: $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"comment":"Comentario de prueba"}'
+
+curl -X POST http://localhost:8080/api/auth/login \
+  -b cookies.txt -H "X-CSRF-TOKEN: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"MiClaveAdmin"}'
 ```
 
-Ejemplo de autenticación:
+Administración con HTTP Basic:
 
 ```bash
-curl -X POST http://localhost:8080/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"usuario","password":"prueba"}'
+curl -u admin:MiClaveAdmin http://localhost:8080/api/admin/users/2
 ```
 
 ## CI seguro (SAST, SCA y Quality Gate)
