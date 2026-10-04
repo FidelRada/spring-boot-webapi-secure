@@ -3,3 +3,5 @@ target/
 *.iml
 .vscode/
 *.log
+__pycache__/
+*.pyc

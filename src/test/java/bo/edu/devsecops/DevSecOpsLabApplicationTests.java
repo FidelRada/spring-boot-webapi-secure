@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -11,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@ActiveProfiles("test")
 class DevSecOpsLabApplicationTests {
 
     @Autowired
@@ -22,9 +24,11 @@ class DevSecOpsLabApplicationTests {
                 .andExpect(status().isOk());
     }
 
+    // Antes "adminEndpointIsCurrentlyExposedForTheLab" (esperaba 200 anónimo, el
+    // comportamiento inseguro). Tras la remediación la administración exige credenciales.
     @Test
-    void adminEndpointIsCurrentlyExposedForTheLab() throws Exception {
+    void adminEndpointRequiresAuthentication() throws Exception {
         mockMvc.perform(get("/api/admin/users/1"))
-                .andExpect(status().isOk());
+                .andExpect(status().isUnauthorized());
     }
 }

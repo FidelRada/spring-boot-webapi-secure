@@ -1,0 +1,75 @@
+{
+ "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+ "version": "2.1.0",
+ "runs": [
+  {
+   "tool": {
+    "driver": {
+     "name": "CodeQL",
+     "semanticVersion": "2.27.1",
+     "rules": []
+    },
+    "extensions": [
+     {
+      "name": "codeql/java-queries",
+      "rules": [
+       {
+        "id": "java/sql-injection",
+        "name": "java/sql-injection",
+        "defaultConfiguration": {
+         "level": "error"
+        },
+        "properties": {
+         "security-severity": "8.8",
+         "tags": [
+          "security"
+         ]
+        }
+       },
+       {
+        "id": "java/log-injection",
+        "name": "java/log-injection",
+        "defaultConfiguration": {
+         "level": "error"
+        },
+        "properties": {
+         "security-severity": "5.0",
+         "tags": [
+          "security"
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "results": [
+    {
+     "ruleId": "java/log-injection",
+     "rule": {
+      "id": "java/log-injection",
+      "toolComponent": {
+       "index": 0
+      }
+     },
+     "level": "error",
+     "message": {
+      "text": "x"
+     },
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "src/main/java/bo/edu/devsecops/controller/AuthController.java"
+        },
+        "region": {
+         "startLine": 29
+        }
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

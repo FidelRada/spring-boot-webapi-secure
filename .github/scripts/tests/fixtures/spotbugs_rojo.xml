@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Estructura reducida de un spotbugsXml.xml real (SpotBugs 4.9.8 + FindSecBugs 1.14.0, commit ROJO). -->
+<BugCollection version="4.9.8" sequence="0" release="">
+  <BugInstance type="SPRING_CSRF_PROTECTION_DISABLED" priority="1" rank="10" abbrev="SECSPRCSRFPD" category="SECURITY">
+    <Class classname="bo.edu.devsecops.config.SecurityConfig"><SourceLine classname="bo.edu.devsecops.config.SecurityConfig" sourcepath="bo/edu/devsecops/config/SecurityConfig.java"/></Class>
+    <SourceLine classname="bo.edu.devsecops.config.SecurityConfig" start="15" end="15" sourcepath="bo/edu/devsecops/config/SecurityConfig.java"/>
+  </BugInstance>
+  <BugInstance type="SQL_INJECTION_SPRING_JDBC" priority="2" rank="12" abbrev="SECSQLISPRJDBC" category="SECURITY">
+    <Class classname="bo.edu.devsecops.controller.ProductController"/>
+    <SourceLine classname="bo.edu.devsecops.controller.ProductController" start="23" end="23" sourcepath="bo/edu/devsecops/controller/ProductController.java"/>
+  </BugInstance>
+  <BugInstance type="SPRING_ENDPOINT" priority="3" rank="15" abbrev="SECSPRE" category="SECURITY">
+    <Class classname="bo.edu.devsecops.controller.ProductController"/>
+  </BugInstance>
+  <BugInstance type="EI_EXPOSE_REP2" priority="2" rank="18" abbrev="EI2" category="MALICIOUS_CODE">
+    <Class classname="bo.edu.devsecops.controller.ProductController"/>
+  </BugInstance>
+</BugCollection>

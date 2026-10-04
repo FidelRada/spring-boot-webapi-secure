@@ -1,0 +1,36 @@
+{
+ "reportSchema": "1.1",
+ "scanInfo": {
+  "engineVersion": "13.0.0"
+ },
+ "projectInfo": {
+  "name": "springboot-devsecops-lab"
+ },
+ "dependencies": [
+  {
+   "fileName": "commons-text-1.9.jar",
+   "filePath": "/m2/commons-text-1.9.jar",
+   "packages": [
+    {
+     "id": "pkg:maven/org.apache.commons/commons-text@1.9"
+    }
+   ],
+   "vulnerabilities": [
+    {
+     "source": "NVD",
+     "name": "CVE-2022-42889",
+     "severity": "CRITICAL",
+     "cvssv3": {
+      "baseScore": 9.8,
+      "baseSeverity": "CRITICAL"
+     },
+     "description": "Text4Shell"
+    }
+   ]
+  },
+  {
+   "fileName": "h2-2.3.232.jar",
+   "filePath": "/m2/h2.jar"
+  }
+ ]
+}

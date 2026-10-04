@@ -1,0 +1,22 @@
+{
+ "SchemaVersion": 2,
+ "Trivy": {
+  "Version": "0.74.0"
+ },
+ "ArtifactName": "lab3:local",
+ "ArtifactType": "container_image",
+ "Results": [
+  {
+   "Target": "app/app.jar",
+   "Class": "lang-pkgs",
+   "Vulnerabilities": [
+    {
+     "VulnerabilityID": "CVE-2099-2000",
+     "PkgName": "org.example:lib",
+     "InstalledVersion": "1.0",
+     "Severity": "LOW"
+    }
+   ]
+  }
+ ]
+}

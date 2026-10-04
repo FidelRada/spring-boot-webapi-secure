@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Solo hallazgos informativos: SECURITY prioridad 3 y una categoría que no es de seguridad. -->
+<BugCollection version="4.9.8" sequence="0" release="">
+  <BugInstance type="SPRING_ENDPOINT" priority="3" rank="15" abbrev="SECSPRE" category="SECURITY">
+    <Class classname="bo.edu.devsecops.controller.ProductController"/>
+  </BugInstance>
+  <BugInstance type="EI_EXPOSE_REP2" priority="2" rank="18" abbrev="EI2" category="MALICIOUS_CODE">
+    <Class classname="bo.edu.devsecops.controller.AdminController"/>
+  </BugInstance>
+</BugCollection>
