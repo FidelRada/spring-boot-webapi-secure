@@ -20,7 +20,7 @@
     <properties>
         <java.version>21</java.version>
         <!-- Versiones gestionadas por el parent que se suben para corregir CVE transitivos
-             HIGH/CRITICAL (design.md D7 del change remediate-app-vulnerabilities).
+             HIGH/CRITICAL detectados por el análisis SCA.
              El parent 3.5.16 trae tomcat 10.1.55 y jackson 2.21.4, todavía vulnerables. -->
         <tomcat.version>10.1.60</tomcat.version>
         <jackson-bom.version>2.21.7</jackson-bom.version>

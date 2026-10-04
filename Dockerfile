@@ -1,4 +1,4 @@
-# Imagen de la aplicación (spec container-delivery CD-01..CD-03, design.md D5).
+# Imagen de la aplicación: build multi-etapa y ejecución sin root.
 
 # ---- Etapa de construcción: Maven 3.9 + JDK 21 (sin Maven Wrapper) ----
 FROM maven:3.9-eclipse-temurin-21 AS builder

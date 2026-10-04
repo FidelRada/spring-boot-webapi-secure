@@ -1,4 +1,4 @@
-# Nightly con SCA (spec CIW-04, CIW-05, CD-07): todos los días a las 20:55 hora de Bolivia
+# Nightly con SCA: todos los días a las 20:55 hora de Bolivia
 # (America/La_Paz, UTC-4 sin horario de verano = 55 0 * * * UTC) y bajo demanda.
 # Escanea también la imagen, sin publicarla. Sin cancelación por concurrencia.
 name: CI - Nightly - Spring Boot DevSecOps

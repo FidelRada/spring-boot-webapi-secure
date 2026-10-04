@@ -13,7 +13,7 @@ import java.util.Map;
 @RequestMapping("/api/products")
 public class ProductController {
 
-    /** Consulta fija: el texto del usuario solo viaja como parámetro enlazado (APP-01..APP-03). */
+    /** Consulta fija: el texto del usuario solo viaja como parámetro enlazado. */
     private static final String CONSULTA_BUSQUEDA =
             "SELECT id, name, price FROM products WHERE name LIKE ? ESCAPE '\\'";
 

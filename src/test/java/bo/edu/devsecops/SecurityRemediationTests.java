@@ -34,9 +34,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Pruebas de regresión de seguridad (change remediate-app-vulnerabilities, escenarios
- * APP-01..APP-18). APP-19 está en {@link ErroresSinStacktraceTests} porque necesita un
- * servidor real para observar el cuerpo de /error.
+ * Pruebas de regresión de seguridad de la API. Los errores del servlet /error se prueban en
+ * {@link ErroresSinStacktraceTests} porque necesitan un servidor real para observar el cuerpo de /error.
  *
  * Las contraseñas de abajo son SOLO de prueba: sus hashes bcrypt están en
  * src/test/resources/application-test.properties (perfil "test").
@@ -63,7 +62,7 @@ class SecurityRemediationTests {
     // ------------------------------------------------------------------ SQLi
 
     @Test
-    @DisplayName("APP-01 El payload de inyección SQL no devuelve el catálogo")
+    @DisplayName("El payload de inyección SQL no devuelve el catálogo")
     void busquedaConPayloadSqlNoDevuelveCatalogo() throws Exception {
         mockMvc.perform(get("/api/products/search").param("name", "' OR '1'='1"))
                 .andExpect(status().isOk())
@@ -71,7 +70,7 @@ class SecurityRemediationTests {
     }
 
     @Test
-    @DisplayName("APP-02 La búsqueda legítima sigue funcionando")
+    @DisplayName("La búsqueda legítima sigue funcionando")
     void busquedaLegitimaDevuelveLaptop() throws Exception {
         mockMvc.perform(get("/api/products/search").param("name", "Lap"))
                 .andExpect(status().isOk())
@@ -80,7 +79,7 @@ class SecurityRemediationTests {
     }
 
     @Test
-    @DisplayName("APP-03 Una comilla aislada no provoca error SQL")
+    @DisplayName("Una comilla aislada no provoca error SQL")
     void comillaAisladaNoProvocaError() throws Exception {
         mockMvc.perform(get("/api/products/search").param("name", "'"))
                 .andExpect(status().isOk())
@@ -90,7 +89,7 @@ class SecurityRemediationTests {
     // ------------------------------------------------------------------- XSS
 
     @Test
-    @DisplayName("APP-04 El script reflejado se codifica para HTML")
+    @DisplayName("El script reflejado se codifica para HTML")
     void previewEscapaScript() throws Exception {
         mockMvc.perform(post("/api/comments/preview").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -101,7 +100,7 @@ class SecurityRemediationTests {
     }
 
     @Test
-    @DisplayName("APP-05 La vista previa lleva nosniff y una CSP restrictiva")
+    @DisplayName("La vista previa lleva nosniff y una CSP restrictiva")
     void previewIncluyeCabecerasDeDefensa() throws Exception {
         mockMvc.perform(post("/api/comments/preview").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -114,7 +113,7 @@ class SecurityRemediationTests {
     // ------------------------------------------------------- Autorización
 
     @Test
-    @DisplayName("APP-06 Administración sin credenciales: 401 y sin datos")
+    @DisplayName("Administración sin credenciales: 401 y sin datos")
     void adminAnonimoRecibe401() throws Exception {
         mockMvc.perform(get("/api/admin/users/1"))
                 .andExpect(status().isUnauthorized())
@@ -122,14 +121,14 @@ class SecurityRemediationTests {
     }
 
     @Test
-    @DisplayName("APP-07 Usuario con rol USER: 403")
+    @DisplayName("Usuario con rol USER: 403")
     void adminConRolUserRecibe403() throws Exception {
         mockMvc.perform(get("/api/admin/users/1").with(httpBasic(ANA, CLAVE_ANA_PRUEBA)))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    @DisplayName("APP-08 Administrador autorizado: 200 con el usuario ana")
+    @DisplayName("Administrador autorizado: 200 con el usuario ana")
     void adminConRolAdminRecibe200() throws Exception {
         mockMvc.perform(get("/api/admin/users/2").with(httpBasic(ADMIN, CLAVE_ADMIN_PRUEBA)))
                 .andExpect(status().isOk())
@@ -137,7 +136,7 @@ class SecurityRemediationTests {
     }
 
     @Test
-    @DisplayName("APP-09 Identificador inexistente: 404 sin detalle de la excepción")
+    @DisplayName("Identificador inexistente: 404 sin detalle de la excepción")
     void adminIdInexistenteRecibe404() throws Exception {
         mockMvc.perform(get("/api/admin/users/999").with(httpBasic(ADMIN, CLAVE_ADMIN_PRUEBA)))
                 .andExpect(status().isNotFound())
@@ -145,7 +144,7 @@ class SecurityRemediationTests {
     }
 
     @Test
-    @DisplayName("APP-10 Una ruta no declarada exige autenticación")
+    @DisplayName("Una ruta no declarada exige autenticación")
     void rutaNoDeclaradaExigeAutenticacion() throws Exception {
         mockMvc.perform(get("/api/otra-ruta"))
                 .andExpect(status().isUnauthorized());
@@ -154,7 +153,7 @@ class SecurityRemediationTests {
     // ------------------------------------------------------------------ CSRF
 
     @Test
-    @DisplayName("APP-11 POST sin token CSRF: 403")
+    @DisplayName("POST sin token CSRF: 403")
     void postSinTokenCsrfRecibe403() throws Exception {
         mockMvc.perform(post("/api/comments/preview")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -163,7 +162,7 @@ class SecurityRemediationTests {
     }
 
     @Test
-    @DisplayName("APP-12 POST con el token de GET /api/csrf y la sesión: 200")
+    @DisplayName("POST con el token de GET /api/csrf y la sesión: 200")
     void postConTokenCsrfRecibe200() throws Exception {
         MvcResult respuesta = mockMvc.perform(get("/api/csrf"))
                 .andExpect(status().isOk())
@@ -183,7 +182,7 @@ class SecurityRemediationTests {
     // ---------------------------------------------------------------- Login
 
     @Test
-    @DisplayName("APP-13 Login válido: usuario y roles, sin token ni secreto")
+    @DisplayName("Login válido: usuario y roles, sin token ni secreto")
     void loginValidoNoDevuelveSecreto() throws Exception {
         mockMvc.perform(post("/api/auth/login").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -196,7 +195,7 @@ class SecurityRemediationTests {
     }
 
     @Test
-    @DisplayName("APP-14 La contraseña hardcodeada anterior ya no funciona (401; sin CSRF 403)")
+    @DisplayName("La contraseña hardcodeada anterior ya no funciona (401; sin CSRF 403)")
     void passwordHardcodeadaYaNoFunciona() throws Exception {
         String anterior = credenciales(ADMIN, "Admin123!");
         mockMvc.perform(post("/api/auth/login").with(csrf())
@@ -212,7 +211,7 @@ class SecurityRemediationTests {
     // ------------------------------------------------------------------ Logs
 
     @Test
-    @DisplayName("APP-15 El log no contiene la contraseña ni saltos de línea del usuario")
+    @DisplayName("El log no contiene la contraseña ni saltos de línea del usuario")
     void logNoContienePasswordNiSaltos(CapturedOutput salida) throws Exception {
         mockMvc.perform(post("/api/auth/login").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -226,7 +225,7 @@ class SecurityRemediationTests {
     // ---------------------------------------------------------- Configuración
 
     @Test
-    @DisplayName("APP-17 Actuator: health público, env no expuesto")
+    @DisplayName("Actuator: health público, env no expuesto")
     void actuatorSoloExponeHealth() throws Exception {
         mockMvc.perform(get("/actuator/health"))
                 .andExpect(status().isOk())
@@ -240,7 +239,7 @@ class SecurityRemediationTests {
     }
 
     @Test
-    @DisplayName("APP-18 Consola H2 deshabilitada")
+    @DisplayName("Consola H2 deshabilitada")
     void consolaH2Deshabilitada() throws Exception {
         assertThat(contexto.containsBean("h2Console"))
                 .as("la consola H2 no debe registrarse como servlet").isFalse();

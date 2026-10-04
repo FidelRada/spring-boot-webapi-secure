@@ -4,6 +4,5 @@ target/
 .idea
 .vscode
 *.iml
-openspec
 docs
 evidencias
