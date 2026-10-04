@@ -75,10 +75,10 @@ public class SecurityConfig {
         // Si falta un hash (o no es bcrypt), ese usuario no se registra y la aplicación arranca igual
         // (el healthcheck del contenedor no requiere usuarios).
         if (!registrar(usuarios, "admin", propiedades.adminPasswordHash(), "ADMIN")) {
-            LOGGER.warn("Usuario 'admin' no registrado: falta LAB_ADMIN_PASSWORD_HASH");
+            LOGGER.warn("Usuario 'admin' no registrado: LAB_ADMIN_PASSWORD_HASH ausente o no es bcrypt");
         }
         if (!registrar(usuarios, "ana", propiedades.userPasswordHash(), "USER")) {
-            LOGGER.warn("Usuario 'ana' no registrado: falta LAB_USER_PASSWORD_HASH");
+            LOGGER.warn("Usuario 'ana' no registrado: LAB_USER_PASSWORD_HASH ausente o no es bcrypt");
         }
         return usuarios;
     }
@@ -99,7 +99,6 @@ public class SecurityConfig {
         }
         String bcrypt = hash.startsWith(PREFIJO_BCRYPT) ? hash.substring(PREFIJO_BCRYPT.length()) : hash;
         if (!HASH_BCRYPT.matcher(bcrypt).matches()) {
-            LOGGER.warn("Usuario '{}' no registrado: el hash recibido no es bcrypt", nombre);
             return false;
         }
         usuarios.createUser(User.withUsername(nombre).password(PREFIJO_BCRYPT + bcrypt).roles(rol).build());
