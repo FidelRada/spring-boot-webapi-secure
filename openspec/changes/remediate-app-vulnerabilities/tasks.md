@@ -45,8 +45,8 @@
 
 - [x] 7.1 `mvn -B clean verify` en HEAD: `SecurityRemediationTests` con ≥ 8 pruebas y 0 fallos (APP-23)
 - [x] 7.2 `herramientas/escaneo_local.sh despues`: gate local con código 0 (QG-14 parte "después")
-- [ ] 7.3 E2E con la app en marcha (`herramientas/e2e_curl.sh`) contra el commit ROJO y contra HEAD: explotaciones de APP-01, APP-04, APP-06, APP-11, APP-14, APP-17 funcionan antes y quedan bloqueadas después; guardar salidas en `evidencias/e2e/{antes,despues}/`
-- [ ] 7.4 [E2E] Push: CI del PR #1 con Quality Gate `success` y `mergeStateStatus=CLEAN` (APP-23, BP-04); confirmar en el SARIF de CodeQL que no queda `java/xss` (D2) ni otra regla con `security-severity` ≥ 7
+- [x] 7.3 E2E con la app en marcha (`herramientas/e2e_curl.sh`) contra el commit ROJO y contra HEAD: explotaciones de APP-01, APP-04, APP-06, APP-11, APP-14, APP-17 funcionan antes y quedan bloqueadas después; guardar salidas en `evidencias/e2e/{antes,despues}/`
+- [x] 7.4 [E2E] Push: CI del PR #1 (en GitHub es el PR #2) con Quality Gate `success` y `mergeStateStatus=CLEAN` (APP-23, BP-04); confirmar en el SARIF de CodeQL que no queda `java/xss` (D2) ni otra regla con `security-severity` ≥ 7
 - [x] 7.5 Ejecutar `openspec validate remediate-app-vulnerabilities --strict` y marcar las tareas completadas
 
 ## Notas de aplicación (fase 3, 2026-10-04)
@@ -55,12 +55,12 @@
 
   | Commit | Mensaje | Familia |
   |---|---|---|
-  | `079e330` | `fix(sqli)` | inyección SQL |
-  | `0fad219` | `fix(xss)` | XSS |
-  | `cd2b7b2` | `fix(authz-csrf)` | autorización, CSRF e IDOR |
-  | `e1e5bcb` | `fix(secretos-logs)` | secretos y logs |
-  | `1042b3b` | `fix(config)` | configuración |
-  | `93ae916` | `fix(deps)` | dependencias |
+  | `909f2fe` (antes `079e330`) | `fix(sqli)` | inyección SQL |
+  | `1f48e20` (antes `0fad219`) | `fix(xss)` | XSS |
+  | `cbdd3ea` (antes `cd2b7b2`) | `fix(authz-csrf)` | autorización, CSRF e IDOR |
+  | `6a31f00` (antes `e1e5bcb`) | `fix(secretos-logs)` | secretos y logs |
+  | `ce4dde4` (antes `1042b3b`) | `fix(config)` | configuración |
+  | `c0fe5cf` (antes `93ae916`) | `fix(deps)` | dependencias |
 
   La tarea 5.5, que preveía un único commit `fix(secretos-config)`, se dividió en dos (`fix(secretos-logs)` y `fix(config)`) por instrucción del orquestador.
 - Pruebas: 17 en `SecurityRemediationTests` y 2 en `ErroresSinStacktraceTests`.
@@ -81,3 +81,9 @@
 ## Notas de la auditoría de ejecución (fase 4, 2026-10-04)
 
 - `SecurityConfig.registrar` solo acepta hashes bcrypt bien formados (con o sin `{bcrypt}`). Un valor vacío, en claro o con otro esquema (`{noop}`, `{MD5}`…) deja el usuario sin registrar: no hay contraseña por defecto ni hash conocido. Pruebas en `config/RegistroUsuariosTests` (3). Total de la suite: 24 pruebas.
+
+## Notas E2E en GitHub (fase 6, 2026-10-04)
+
+- SHA tras el reorden de la fase 6: los de la tabla de commits (entre paréntesis, los anteriores). Además, `8c7d9f7` → `bd0019e`, `9c21ab3` → `de4d6d2`, `89e8155` → `d8eed4c` y `c2759ef` → `cc5f4cc` (HEAD publicado).
+- 7.3: E2E curl en la fase 6 local. Antes (ROJO_FINAL `8acb79d`): 14/14 vulnerabilidades reproducidas. Después (`cc5f4cc`): 19/19 controles (`evidencias/e2e/`, carpeta del laboratorio).
+- 7.4: el PR del laboratorio es el **PR #2** (https://github.com/FidelRada/spring-boot-webapi-secure/pull/2), porque Dependabot abrió el #1. Run `pull_request` 37227469858 sobre `cc5f4cc` con el gate en **success** (0 bloqueantes, 17 no bloqueantes, 15 suprimidos) y `mergeStateStatus=CLEAN`. El SARIF de CodeQL del push 37227467114 (sin filtro de diff) tiene **0 resultados**: no queda `java/xss` con `Encode.forHtml` y no hizo falta la alternativa de D2. El merge lo hará el usuario (BP-04).

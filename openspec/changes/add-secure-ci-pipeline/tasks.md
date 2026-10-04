@@ -118,21 +118,21 @@
 
 ## 8. [E2E] GitHub (fase 6; requiere push y configuración remota)
 
-- [ ] 8.1 [E2E] Registrar los secretos y preparar el repositorio:
+- [x] 8.1 [E2E] Registrar los secretos y preparar el repositorio:
   - `gh secret set NVD_API_KEY` y `gh secret set NVD_API_KEY --app dependabot`.
   - Crear `develop` en el fork y habilitar Actions.
   - Habilitar Dependabot alerts y security updates con `gh api -X PUT .../vulnerability-alerts` y `.../automated-security-fixes`.
   - Verificar con `gh secret list` y con los `gh api` de SCA-11.
-- [ ] 8.2 [E2E] Hacer push de `feature/lab3-ci-seguro` y comprobar el run de CI `push` (SAST-07, QG-11, CIW-01): escáneres en `success` y Quality Gate en `failure` con la tabla en el Step Summary
-- [ ] 8.3 [E2E] Abrir el PR #1 → `develop` (CIW-02). Leer los nombres reales con `gh api repos/FidelRada/spring-boot-webapi-secure/commits/<sha>/check-runs --jq '.check_runs[].name'` (CIW-12) y ajustar el JSON del ruleset si difieren
+- [x] 8.2 [E2E] Hacer push de `feature/lab3-ci-seguro` y comprobar el run de CI `push` (SAST-07, QG-11, CIW-01): escáneres en `success` y Quality Gate en `failure` con la tabla en el Step Summary
+- [x] 8.3 [E2E] Abrir el PR #1 → `develop` (CIW-02). Leer los nombres reales con `gh api repos/FidelRada/spring-boot-webapi-secure/commits/<sha>/check-runs --jq '.check_runs[].name'` (CIW-12) y ajustar el JSON del ruleset si difieren
 - [ ] 8.4 [E2E] Aplicar el ruleset con `gh api -X POST repos/FidelRada/spring-boot-webapi-secure/rulesets --input .github/rulesets/proteger-main-develop.json` (BP-01). Comprobar `mergeStateStatus=BLOCKED` y que `gh pr merge 1 --merge` se rechaza (BP-02, BP-03). Probar el push directo, el force-push y el borrado (BP-06, BP-07)
-- [ ] 8.5 [E2E] Verificar las alertas de Code scanning (SAST-05), el artifact de DC (SCA-03) y la caché de DC en la segunda ejecución (SCA-07)
+- [x] 8.5 [E2E] Verificar las alertas de Code scanning (SAST-05), el artifact de DC (SCA-03) y la caché de DC en la segunda ejecución (SCA-07)
 - [ ] 8.6 [E2E] Después de los merges del change 2: CI/CD de `develop` y `main` (CIW-03, CD-05, CD-06), nightly con `gh workflow enable` + `gh workflow run ci-sec-nightly.yml --ref main` (CIW-04, CD-07), Dependabot en la rama predeterminada (SCA-09) y PR #3 de regresión (BP-05)
 - [ ] 8.7 [E2E] Ejecutar `gh run download` de cada run citado a `evidencias/pipeline/<runId>_<workflow>/` antes de que expire (7 días) y registrarlo en `evidencias/indice_evidencias.md` y `referencia_pipeline.md` (CIW-15)
 
 ## Notas de aplicación (fase 3, 2026-10-04)
 
-- Commit ROJO: `1a9980a`. El mensaje sigue la instrucción del orquestador: `ci: pipeline seguro con SAST/SCA y quality gate que lee reportes (ROJO)`.
+- Commit ROJO: `1a9980a` (pipeline). Tras el reorden de la fase 6, el commit rojo publicado es **ROJO_FINAL `8acb79d`** (`1a9980a` + los fix de auditoría `442fd98` y `8acb79d`, con `src/` intacto). El mensaje sigue la instrucción del orquestador: `ci: pipeline seguro con SAST/SCA y quality gate que lee reportes (ROJO)`.
 - `git grep -n 0502[8]C6D`: el patrón se escribe con `[8]` para que los artefactos que documentan la búsqueda no coincidan consigo mismos. La clave completa no aparece en el árbol.
 - Job `imagen` del reutilizable: no declara `permissions`. Un job anidado no puede pedir más de lo que concede el caller, y GitHub lo valida al cargar el workflow; se documenta en design.md D1 y CIW-11.
 - Escaneo "antes" (`evidencias/locales/antes/`):
@@ -142,10 +142,22 @@
 
 ## Notas de la auditoría de ejecución (fase 4, 2026-10-04)
 
-- `ac51ff1` `fix(ci)`:
+- `442fd98` (antes `ac51ff1`) `fix(ci)`:
   - `security-scans.yml` ya no tiene `permissions` a nivel de workflow. En un reutilizable, ese nivel se aplica a todo job sin bloque propio, así que el job `imagen` quedaba con solo `contents: read`: el push a GHCR y la subida del SARIF de la imagen habrían fallado. CIW-11 y design.md D1 están actualizados.
   - `defaults.run.shell: bash` (`-o pipefail`) para que `semgrep … | tee` no oculte un fallo técnico.
   - Caché diaria de Trivy (`actions/cache`) en los jobs SBOM e imagen, Trivy sin root (`--user`, `--cache-dir`). La imagen se escanea desde un tar (`docker save` + `--input`), sin el socket de Docker.
   - Nombre de la imagen GHCR en minúsculas (`${GITHUB_REPOSITORY,,}`).
-- `e437c2d` `fix(gate)`: los `::error::` y el Step Summary escapan los datos de los reportes (sin inyección de comandos de workflow ni de Markdown). +4 pruebas: 31 en total.
+- `8acb79d` (antes `e437c2d`) `fix(gate)`: los `::error::` y el Step Summary escapan los datos de los reportes (sin inyección de comandos de workflow ni de Markdown). +4 pruebas: 31 en total.
 - Tarea 8.5: verificar también que la caché `trivy-db-*` se restaura en la segunda ejecución. En 8.6, verificar que la imagen se publica como `ghcr.io/fidelrada/spring-boot-webapi-secure`.
+
+## Notas E2E en GitHub (fase 6, 2026-10-04)
+
+- **Numeración de PR:** al habilitar las alertas, Dependabot abrió el **PR #1** (`commons-text` 1.9 → 1.10.0 hacia `main`; alerta crítica CVE-2022-42889, SCA-09/SCA-11). Por eso el PR del laboratorio es el **PR #2** (https://github.com/FidelRada/spring-boot-webapi-secure/pull/2). Las referencias a "PR #1" de este change corresponden al PR #2.
+- 8.1: el usuario registró `NVD_API_KEY` en Actions y Dependabot. Actions habilitado, `vulnerability-alerts` 204 y `automated-security-fixes` enabled. Nightly habilitado (`disabled_fork` → `active`). `develop` creada desde `584fd8d`. Run "antes" del upstream: CI/CD en `develop` 37226562034, en **success** con Dependency-Check `skipped` (`if: false`).
+- 8.2: push de ROJO_FINAL `8acb79d`, run CI `push` 37226599366. Escáneres en success, DC skipped y **Quality Gate en failure** (37 bloqueantes: CodeQL 4, Semgrep 7, SpotBugs 3, Trivy 23).
+- 8.3: PR #2 → `develop`, run `pull_request` 37226787496 (DC incluido) con gate en **failure** (81 bloqueantes). Nombres reales: `CI (pull_request) / Quality Gate` y `CI (pull_request) / Build & Test` (app 15368). Coinciden con el JSON, así que no hubo que ajustarlo.
+- 8.4 (parcial): ruleset **24465496** activo sobre `main`/`develop`. Con ROJO_FINAL, `mergeStateStatus=BLOCKED` (BP-01, BP-02). No se probaron `gh pr merge`, el push directo, el force-push ni el borrado (BP-03, BP-06, BP-07): por restricción, el subagente E2E no intenta merges ni push a ramas protegidas. Quedan para el usuario o el PR #3 de regresión. Las reglas efectivas están en `rules/branches/{main,develop}` (deletion, non_fast_forward, pull_request, required_status_checks).
+- 8.5: alertas de Code scanning visibles por ref (Semgrep, CodeQL, dependency-check y Trivy). Artifact `reporte-dependency-check` en el PR y en el nightly. Caché: `dc-data-Linux-2026-40` restaurada en el segundo run del PR (37227469858) y `trivy-db-Linux-2026-10-04` restaurada en el nightly y en los runs verdes. Las cachés de un PR (`refs/pull/N/merge`) no son visibles desde la rama, por eso el primer nightly no encontró la de DC.
+- Verde (`cc5f4cc`): PR 37227469858 y push 37227467114 con gate en success, **PR #2 `CLEAN`**. Nightly `workflow_dispatch` en rojo 37227199354 (`8acb79d`) y en verde 37227684557 (`cc5f4cc`, imagen escaneada sin publicar, CD-07).
+- **Observación (CodeQL en PR):** en `pull_request`, `codeql-action` aplica *diff-informed analysis* («Computing PR diff ranges…») y solo reporta lo que cae en el diff del PR: el run 37226787496 dio 1 bloqueante de CodeQL frente a 4 en el push 37226599366. Semgrep y SpotBugs no filtran y el push a `feature/**`, CI/CD y nightly analizan todo, pero en PR el control de CodeQL es más débil de lo que dice SAST-03. Se deja para revisión de la fase 7 (opción: desactivar el análisis por diff en el job de PR).
+- 8.6 y 8.7 quedan pendientes del merge del usuario (8.7 parcial: runs de esta fase descargados en `evidencias/pipeline/`, carpeta del laboratorio).

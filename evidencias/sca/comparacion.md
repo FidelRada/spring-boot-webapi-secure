@@ -2,19 +2,19 @@
 
 Plantilla de la guía 02 §13, completada para el Laboratorio 3 (change
 `remediate-app-vulnerabilities`, escenario APP-22). Los datos de los runs de GitHub Actions
-se completan en la fase 6 (E2E); hasta entonces figuran como *pendiente fase 6*.
+se completaron en la fase 6 (E2E en GitHub, 2026-10-04).
 
 ## Identificación
 
 - Grupo: 10 (Andrés Fidel Rada)
 - Repositorio: https://github.com/FidelRada/spring-boot-webapi-secure (fork de `pablovillazon/spring-boot-webapi-secure`)
-- Commit anterior: `1a9980a` — `ci: pipeline seguro con SAST/SCA y quality gate que lee reportes (ROJO)`
-- Commit posterior: `93ae916` — `fix(deps): commons-text 1.10.0 y CVE transitivos` (HEAD de la remediación en `feature/lab3-ci-seguro`)
-- Ejecución anterior: pendiente fase 6 (run de CI del commit ROJO)
-- Ejecución posterior: pendiente fase 6 (run de CI tras la remediación)
-- Pull request: pendiente fase 6 (PR #1 `feature/lab3-ci-seguro` → `develop`)
+- Commit anterior: `8acb79d` (ROJO_FINAL publicado: pipeline `1a9980a` + fix de auditoría `442fd98`/`8acb79d`, mismo `src/` y `pom.xml` que `1a9980a`)
+- Commit posterior: `cc5f4cc` (HEAD de `feature/lab3-ci-seguro`; la corrección SCA es `c0fe5cf` — `fix(deps): commons-text 1.10.0 y CVE transitivos`)
+- Ejecución anterior: run `pull_request` [37226787496](https://github.com/FidelRada/spring-boot-webapi-secure/actions/runs/37226787496) (gate en failure) y run `push` [37226599366](https://github.com/FidelRada/spring-boot-webapi-secure/actions/runs/37226599366)
+- Ejecución posterior: run `pull_request` [37227469858](https://github.com/FidelRada/spring-boot-webapi-secure/actions/runs/37227469858) (gate en success), run `push` [37227467114](https://github.com/FidelRada/spring-boot-webapi-secure/actions/runs/37227467114) y nightly [37227684557](https://github.com/FidelRada/spring-boot-webapi-secure/actions/runs/37227684557)
+- Pull request: [PR #2](https://github.com/FidelRada/spring-boot-webapi-secure/pull/2) `feature/lab3-ci-seguro` → `develop` (el #1 lo abrió Dependabot: `commons-text` 1.9 → 1.10.0 hacia `main`)
 - Versión de Trivy: 0.74.0 (`aquasec/trivy:0.74.0`, por Docker); OWASP Dependency-Check 13.0.0 (NVD); CycloneDX Maven Plugin 2.9.3 (schema 1.6)
-- Fecha y hora de los análisis locales: 2026-10-04, 13:23 (antes, regenerado desde un `git worktree` del commit `1a9980a`) y 13:18 (después, commit `89e8155`), America/La_Paz
+- Fecha y hora de los análisis locales: 2026-10-04, 13:23 (antes, regenerado desde un `git worktree` del commit `1a9980a`, mismo código que `8acb79d`) y 13:18 (después, commit `89e8155` = `d8eed4c`, mismo código que `cc5f4cc`). Runs de GitHub: 2026-10-04, entre 15:01 y 15:21, America/La_Paz
 
 ## Hallazgo seleccionado
 
@@ -25,7 +25,7 @@ se completan en la fase 6 (E2E); hasta entonces figuran como *pendiente fase 6*.
 | CVE seleccionado | CVE-2022-42889 (Text4Shell, interpolación de variables → RCE) | CVE-2022-42889 |
 | Severidad reportada | CRITICAL (Trivy/GHSA); CVSS v3.1 9.8 (Dependency-Check/NVD) | — |
 | Presencia del hallazgo | Sí: Trivy SBOM y Dependency-Check (`BUILD FAILURE` con `failBuildOnCVSS=7`) | No: ausente en Trivy y en Dependency-Check |
-| Estado del quality gate | Rojo: `quality_gate.py` local exit 1 (80 bloqueantes, 23 de Trivy y 47 de DC); run del PR pendiente fase 6 | Verde en SCA: Trivy 0 HIGH/CRITICAL, DC `BUILD SUCCESS` sin override; gate local completo en `evidencias/locales/despues/`; run del PR pendiente fase 6 |
+| Estado del quality gate | Rojo: `quality_gate.py` local exit 1 (80 bloqueantes, 23 de Trivy y 47 de DC); run del PR 37226787496: **failure**, 81 bloqueantes (Trivy 23, DC 47) | Verde en SCA: Trivy 0 HIGH/CRITICAL, DC `BUILD SUCCESS` sin override; gate local completo en `evidencias/locales/despues/`; run del PR 37227469858: **success**, 0 bloqueantes (DC 8 no bloqueantes y 15 suprimidos; Trivy 1 MEDIUM) |
 
 Resumen de Trivy sobre el SBOM (local):
 
@@ -47,13 +47,13 @@ Resumen de Trivy sobre el SBOM (local):
    - Ningún umbral cambió: Trivy sigue sin `--ignore-unfixed`, DC sigue con `failBuildOnCVSS=7` y el gate con CVSS ≥ 7.0 / HIGH / CRITICAL.
 
 3. **¿Qué pruebas se ejecutaron para verificar compatibilidad?**
-   `mvn -B clean verify` con 24 pruebas en verde: las 2 originales (una ajustada a 401), 17 de `SecurityRemediationTests`, 2 de `ErroresSinStacktraceTests` y 3 de `config/RegistroUsuariosTests` (añadidas en la auditoría de ejecución, commit `8c7d9f7`). Además, arranque local de la aplicación y los comandos curl del README (CSRF, HTTP Basic, actuator, H2).
+   `mvn -B clean verify` con 24 pruebas en verde: las 2 originales (una ajustada a 401), 17 de `SecurityRemediationTests`, 2 de `ErroresSinStacktraceTests` y 3 de `config/RegistroUsuariosTests` (añadidas en la auditoría de ejecución, commit `bd0019e`, antes `8c7d9f7`). Además, arranque local de la aplicación y los comandos curl del README (CSRF, HTTP Basic, actuator, H2).
 
 4. **¿Qué evidencia muestra que desapareció el hallazgo seleccionado?**
    - `evidencias/locales/antes/sbom-trivy/sca-report.json` contiene CVE-2022-42889 y `evidencias/locales/despues/sbom-trivy/sca-report.json` no lo contiene (carpeta del laboratorio).
    - `bom.json` posterior declara `pkg:maven/org.apache.commons/commons-text@1.10.0`.
    - Dependency-Check local pasa de `BUILD FAILURE` (CVE-2022-42889, 9.8) a `BUILD SUCCESS`.
-   - Los artifacts `reporte-trivy-sbom` y `reporte-dependency-check` de ambos runs se adjuntan en la fase 6.
+   - Los artifacts `reporte-trivy-sbom` y `reporte-dependency-check` de ambos runs están descargados en `evidencias/pipeline/37226787496_ci_pull_request_rojo/` y `evidencias/pipeline/37227469858_ci_pull_request_verde/` (carpeta del laboratorio). Además, Dependabot abrió una alerta crítica (CVE-2022-42889) sobre `main` y el PR #1 con la misma corrección.
 
 5. **¿Qué otros hallazgos o limitaciones quedan pendientes?**
    - **Spring sin versión OSS corregida.** Dependency-Check, por CPE, reporta 12 CVE de Spring Framework 6.2.0–6.2.19 y 3 de Spring Security 6.5.0–6.5.11. Las versiones corregidas (6.2.20 y 6.5.12) no están publicadas en Maven Central: la línea Spring Boot 3.5 ya no tiene soporte OSS. Ninguno aplica a esta aplicación: afectan a WebFlux, RSocket, Jetty, XsltView, SSE, SpEL con entrada del usuario, data binding de rutas de propiedades, LDAP embebido, DPoP o WebAuthn, que la app no usa ni tiene en el classpath. Trivy (GHSA) no los reporta. Se suprimieron uno a uno en `dependency-check-suppressions.xml`, con justificación en `<notes>` y `until="2026-12-31Z"`. Al vencer vuelven a bloquear. La solución definitiva es migrar a Spring Boot 4.x (Framework 7 / Security 7), fuera del alcance del laboratorio.
