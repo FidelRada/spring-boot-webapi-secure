@@ -1,0 +1,56 @@
+schema: spec-driven
+
+context: |
+  Language: es
+  All artifacts must be written in es.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+
+  ## Proyecto
+  Fork académico (FidelRada/spring-boot-webapi-secure, upstream pablovillazon/spring-boot-webapi-secure)
+  usado en el Laboratorio 3 "CI Seguro con SAST y SCA" del Módulo 5 (DevSecOps) del diplomado
+  UAGRM – FICCT. Grupo 10. Cierre de la entrega: miércoles 7/10/2026 00:00 (America/La_Paz).
+
+  ## Stack
+  - Spring Boot 3.5.14 (spring-boot-starter-parent), Java 21, Maven (sin Maven Wrapper).
+  - Paquete raíz bo.edu.devsecops: controladores ProductController, CommentController,
+    AdminController, AuthController y SecurityConfig.
+  - H2 en memoria (schema.sql, data.sql): los tests no requieren servicios externos.
+  - Tests con JUnit 5 + MockMvc (spring-boot-starter-test, spring-security-test). Cobertura JaCoCo.
+  - CI en GitHub Actions; imagen Docker publicada en GHCR.
+
+  ## Naturaleza de la aplicación
+  La aplicación es DELIBERADAMENTE VULNERABLE (SQLi en /api/products/search, XSS reflejado en
+  /api/comments/preview, secretos hardcodeados y password en log en /api/auth/login, permitAll,
+  CSRF deshabilitado, actuator y consola H2 expuestos, stacktraces en errores, commons-text 1.9
+  con CVE-2022-42889). Solo se ejecuta en localhost o en runners efímeros.
+
+  ## Objetivo del laboratorio
+  1. Pipeline de CI seguro (CI en feature/**, CI/CD en main y develop, nightly + SCA) con
+     Semgrep/CodeQL (SAST), SpotBugs + FindSecBugs, OWASP Dependency-Check y CycloneDX + Trivy (SCA).
+  2. Quality Gate que LEE los reportes y falla ante hallazgos críticos/altos (fail-closed).
+  3. Merges a main (y develop) bloqueados mediante ruleset con required checks.
+  4. Estrategia rojo → verde: primero el CI detecta y bloquea (change add-secure-ci-pipeline);
+     después se remedia la app (change remediate-app-vulnerabilities) y el PR se fusiona.
+  5. Entregable: informe PDF (formato SOE) con capturas de workflows y reportes locales y del pipeline.
+
+  ## Convenciones
+  - Todo en español: artefactos OpenSpec, comentarios, mensajes de commit, nombres de pasos.
+  - Diagramas UML en Mermaid dentro de design.md (deben renderizar con @mermaid-js/mermaid-cli).
+  - Cada escenario lleva un ID estable en su título (p. ej. QG-01) y se traza en trazabilidad.md
+    hacia una prueba (unittest, MockMvc, curl E2E, run de Actions o escaneo local) y una figura.
+  - Commits convencionales en español: feat/fix/ci/docs/test(ámbito): descripción.
+  - Nunca bajar umbrales ni desactivar controles (|| true, if: false, continue-on-error) para
+    obtener una ejecución verde. Los secretos van en GitHub Secrets, nunca en el repositorio.
+  - Comandos clave: mvn -B clean verify; semgrep scan --metrics=off --config p/java ...;
+    mvn -B org.owasp:dependency-check-maven:check; mvn -B compile spotbugs:check;
+    mvn -B cyclonedx:makeAggregateBom; docker run aquasec/trivy:0.74.0 sbom ...;
+    python3 .github/scripts/quality_gate.py.
+
+rules:
+  specs:
+    - Cada título de escenario empieza con un ID estable en mayúsculas (p. ej. "QG-01 ...").
+    - Los escenarios deben ser verificables con un comando, test o run concreto.
+  design:
+    - Incluir los diagramas UML en bloques ```mermaid que rendericen sin errores.
+  tasks:
+    - Cada tarea indica cómo se verifica (comando, test, evidencia).
