@@ -122,6 +122,16 @@ jobs:
       contents: read
       actions: read
       security-events: write
+    # En pull_request, codeql-action v4 activa por defecto el "diff-informed analysis":
+    # solo informa de los hallazgos que caen en las líneas modificadas por el PR. El
+    # Quality Gate debe ver TODOS los hallazgos de seguridad del código que se va a
+    # fusionar, no solo los del diff (en el PR rojo se veía 1 de 4 bloqueantes de CodeQL).
+    # La variable desactiva la función (src/feature-flags.ts, Feature.DiffInformedQueries:
+    # el valor "false" tiene prioridad sobre los feature flags de la API). A nivel de job,
+    # para que la lean tanto init como analyze. Sin diff-informed tampoco se usa el
+    # análisis overlay (incremental), así que el SARIF es siempre del código completo.
+    env:
+      CODEQL_ACTION_DIFF_INFORMED_QUERIES: 'false'
     steps:
       - name: Obtener código
         uses: actions/checkout@v7

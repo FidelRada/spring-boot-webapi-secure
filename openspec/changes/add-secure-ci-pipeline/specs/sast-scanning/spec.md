@@ -18,11 +18,15 @@ El análisis Semgrep SHALL ejecutarse con la imagen `semgrep/semgrep:1.179.0`, c
 - **THEN** incluye `--metrics=off`, no incluye `--config auto` y el run termina sin el error "Cannot create auto config when metrics are off"
 
 ### Requirement: CodeQL para Java
-El pipeline SHALL ejecutar CodeQL (`github/codeql-action@v4`) para `java-kotlin` con `build-mode: none` y la suite `security-and-quality`, y publicar el SARIF resultante como reporte para el Quality Gate.
+El pipeline SHALL ejecutar CodeQL (`github/codeql-action@v4`) para `java-kotlin` con `build-mode: none` y la suite `security-and-quality`, y publicar el SARIF resultante como reporte para el Quality Gate. En `pull_request` el análisis SHALL cubrir el código completo, no solo el diff del PR: el *diff-informed analysis* se desactiva con `CODEQL_ACTION_DIFF_INFORMED_QUERIES: 'false'`.
 
 #### Scenario: SAST-03 CodeQL encuentra la inyección SQL
 - **WHEN** CodeQL analiza el commit ROJO
 - **THEN** el SARIF generado contiene un resultado `java/sql-injection` con `security-severity` mayor o igual a 7.0
+
+#### Scenario: SAST-08 CodeQL en un PR analiza el código completo
+- **WHEN** CodeQL se ejecuta en el evento `pull_request` sobre un PR cuyo diff no toca el código vulnerable
+- **THEN** el SARIF contiene los mismos resultados bloqueantes que el análisis del `push` del mismo commit (sin filtrar por el diff del PR)
 
 ### Requirement: SpotBugs con FindSecBugs
 El pipeline y el entorno local SHALL ejecutar SpotBugs (`spotbugs-maven-plugin` 4.9.8.5, compatible con Maven 3.8.7 y Java 21) con el plugin FindSecBugs 1.14.0 y generar `target/spotbugsXml.xml`; el análisis no SHALL abortar por hallazgos, solo por errores técnicos.
