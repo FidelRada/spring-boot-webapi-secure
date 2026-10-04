@@ -77,3 +77,7 @@
   - DC local sin override en `BUILD SUCCESS`.
   - Trivy SBOM: 0 HIGH/CRITICAL.
   - Imagen remediada: gate `--only trivy-imagen` en APROBADO.
+
+## Notas de la auditoría de ejecución (fase 4, 2026-10-04)
+
+- `SecurityConfig.registrar` solo acepta hashes bcrypt bien formados (con o sin `{bcrypt}`). Un valor vacío, en claro o con otro esquema (`{noop}`, `{MD5}`…) deja el usuario sin registrar: no hay contraseña por defecto ni hash conocido. Pruebas en `config/RegistroUsuariosTests` (3). Total de la suite: 24 pruebas.

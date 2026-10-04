@@ -20,6 +20,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 
+import java.util.regex.Pattern;
+
 /**
  * Seguridad de la API (change remediate-app-vulnerabilities, design.md D3 y D4):
  * denegación por defecto, /api/admin/** y /actuator/** solo para ADMIN, HTTP Basic,
@@ -30,6 +32,9 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SecurityConfig.class);
+
+    private static final String PREFIJO_BCRYPT = "{bcrypt}";
+    private static final Pattern HASH_BCRYPT = Pattern.compile("^\\$2[aby]?\\$\\d{2}\\$[./A-Za-z0-9]{53}$");
 
     private static final String CSP =
             "default-src 'none'; style-src 'self'; frame-ancestors 'none'";
@@ -67,7 +72,7 @@ public class SecurityConfig {
     @Bean
     UserDetailsService userDetailsService(LabSecurityProperties propiedades) {
         InMemoryUserDetailsManager usuarios = new InMemoryUserDetailsManager();
-        // Si falta un hash, ese usuario no se registra y la aplicación arranca igual
+        // Si falta un hash (o no es bcrypt), ese usuario no se registra y la aplicación arranca igual
         // (el healthcheck del contenedor no requiere usuarios).
         if (!registrar(usuarios, "admin", propiedades.adminPasswordHash(), "ADMIN")) {
             LOGGER.warn("Usuario 'admin' no registrado: falta LAB_ADMIN_PASSWORD_HASH");
@@ -83,12 +88,21 @@ public class SecurityConfig {
         return configuracion.getAuthenticationManager();
     }
 
-    private static boolean registrar(InMemoryUserDetailsManager usuarios, String nombre, String hash, String rol) {
+    /**
+     * Registra el usuario solo si recibe un hash bcrypt bien formado (con o sin el prefijo
+     * {bcrypt}). Un valor vacío, en claro o con otro esquema ({noop}, {MD5}...) se rechaza:
+     * el usuario queda deshabilitado en lugar de aceptar una contraseña débil o conocida.
+     */
+    static boolean registrar(InMemoryUserDetailsManager usuarios, String nombre, String hash, String rol) {
         if (hash == null || hash.isBlank()) {
             return false;
         }
-        String almacenado = hash.startsWith("{") ? hash : "{bcrypt}" + hash;
-        usuarios.createUser(User.withUsername(nombre).password(almacenado).roles(rol).build());
+        String bcrypt = hash.startsWith(PREFIJO_BCRYPT) ? hash.substring(PREFIJO_BCRYPT.length()) : hash;
+        if (!HASH_BCRYPT.matcher(bcrypt).matches()) {
+            LOGGER.warn("Usuario '{}' no registrado: el hash recibido no es bcrypt", nombre);
+            return false;
+        }
+        usuarios.createUser(User.withUsername(nombre).password(PREFIJO_BCRYPT + bcrypt).roles(rol).build());
         return true;
     }
 }
