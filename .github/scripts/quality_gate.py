@@ -409,7 +409,8 @@ class QualityGate:
     @staticmethod
     def write_summary(resultado: GateResult, max_filas: int = 200) -> str:
         def celda(texto) -> str:
-            return str(texto).replace("|", "\\|").replace("\n", " ")
+            # Sin "|" ni saltos de línea (romperían la tabla) ni "`" (cerraría el código).
+            return str(texto).replace("|", "\\|").replace("\r", " ").replace("\n", " ").replace("`", "'")
 
         lineas = ["## Quality Gate de seguridad", ""]
         icono = "✅" if resultado.exit_code() == EXIT_OK else "❌"
@@ -467,6 +468,15 @@ class QualityGate:
         return "\n".join(lineas) + "\n"
 
 
+def escapar_comando(texto) -> str:
+    """Escapa datos de un comando de workflow (::error::) según la especificación de Actions.
+
+    Los nombres de archivo, reglas y CVE vienen de los reportes (y en un PR, del código del
+    autor): sin escapar, un salto de línea permitiría inyectar otro comando "::...::".
+    """
+    return str(texto).replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
 def _cargar_needs(valor):
     if not valor:
         return {}
@@ -521,11 +531,14 @@ def main(argv=None) -> int:
             fh.write(resumen)
 
     for job, estado in resultado.failed_jobs:
-        print(f"::error::Job '{job}' terminó en {estado}")
+        print(f"::error::Job '{escapar_comando(job)}' terminó en {escapar_comando(estado)}")
     for tool, archivo, motivo in resultado.missing:
-        print(f"::error::[{tool}] {motivo}: {archivo}")
+        print(f"::error::[{tool}] {escapar_comando(motivo)}: {escapar_comando(archivo)}")
     for f in resultado.blocking:
-        print(f"::error::[{f.tool}] {f.rule} ({f.severity}) en {f.location}")
+        print(
+            f"::error::[{f.tool}] {escapar_comando(f.rule)} ({escapar_comando(f.severity)}) "
+            f"en {escapar_comando(f.location)}"
+        )
     print(
         f"Quality Gate: {resultado.verdict()} — {len(resultado.blocking)} bloqueantes, "
         f"{len(resultado.findings) - len(resultado.blocking)} no bloqueantes/suprimidos, "

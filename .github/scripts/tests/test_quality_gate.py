@@ -270,5 +270,59 @@ class TestImagen(BaseGate):
         self.assertIn("trivy-imagen-app.json", resumen)
 
 
+class TestEndurecimiento(BaseGate):
+    """Casos añadidos en la auditoría de ejecución (fase 4)."""
+
+    def escribir(self, nombre, datos):
+        ruta = self.dir / nombre
+        ruta.parent.mkdir(parents=True, exist_ok=True)
+        ruta.write_text(json.dumps(datos), encoding="utf-8")
+        return ruta
+
+    def test_dependency_check_cvssv4_y_cvssv2(self):
+        """Puntuación en cvssv4.cvssData (DC 12+) o solo severidad v2 HIGH: ambos bloquean."""
+        ruta = self.escribir("dc.json", {"dependencies": [{
+            "fileName": "x.jar",
+            "vulnerabilities": [
+                {"name": "CVE-V4", "cvssv4": {"cvssData": {"baseScore": 8.7}}},
+                {"name": "CVE-V2", "severity": "HIGH", "cvssv2": {"score": 6.9}},
+                {"name": "CVE-MEDIA", "severity": "MEDIUM", "cvssv3": {"baseScore": 6.5}},
+            ],
+        }]})
+        hallazgos = {f.rule: f for f in qg.DependencyCheckParser().parse(ruta)}
+        self.assertTrue(hallazgos["CVE-V4"].blocking)
+        self.assertTrue(hallazgos["CVE-V2"].blocking)
+        self.assertFalse(hallazgos["CVE-MEDIA"].blocking)
+
+    def test_job_cancelado_bloquea(self):
+        self.colocar_limpios()
+        needs = dict(NEEDS_OK, **{"sast-codeql": {"result": "cancelled", "outputs": {}}})
+        codigo, _, _ = self.ejecutar("--needs-json", json.dumps(needs))
+        self.assertEqual(codigo, 1)
+
+    def test_needs_json_invalido_falla_cerrado(self):
+        self.colocar_limpios()
+        codigo, _, _ = self.ejecutar("--needs-json", "{no es json")
+        self.assertEqual(codigo, 2)
+
+    def test_datos_del_reporte_no_inyectan_comandos_ni_markdown(self):
+        """Un nombre de paquete con salto de línea no crea otro comando ::...:: ni rompe la tabla."""
+        self.colocar_limpios(trivy=None)
+        self.escribir(NOMBRES["trivy"], {"SchemaVersion": 2, "Results": [{
+            "Target": "Java",
+            "Vulnerabilities": [{
+                "VulnerabilityID": "CVE-2099-0001", "Severity": "HIGH",
+                "PkgName": "lib`x\n::warning::inyectado|col", "InstalledVersion": "1.0",
+            }],
+        }]})
+        codigo, resumen, salida = self.ejecutar()
+        self.assertEqual(codigo, 1)
+        self.assertNotIn("\n::warning::", salida)
+        self.assertIn("%0A::warning::inyectado", salida)
+        fila = [l for l in resumen.splitlines() if "CVE-2099-0001" in l][0]
+        self.assertNotIn("lib`x", fila)
+        self.assertIn("inyectado\\|col", fila)
+
+
 if __name__ == "__main__":
     unittest.main()
