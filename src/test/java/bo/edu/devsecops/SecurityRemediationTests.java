@@ -182,10 +182,46 @@ class SecurityRemediationTests {
 
     // ---------------------------------------------------------------- Login
 
+    @Test
+    @DisplayName("APP-13 Login válido: usuario y roles, sin token ni secreto")
+    void loginValidoNoDevuelveSecreto() throws Exception {
+        mockMvc.perform(post("/api/auth/login").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(credenciales(ADMIN, CLAVE_ADMIN_PRUEBA)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.usuario").value(ADMIN))
+                .andExpect(jsonPath("$.roles", hasItem("ROLE_ADMIN")))
+                .andExpect(jsonPath("$.token").doesNotExist())
+                .andExpect(content().string(not(containsString("devsecops-lab-secret"))));
+    }
 
+    @Test
+    @DisplayName("APP-14 La contraseña hardcodeada anterior ya no funciona (401; sin CSRF 403)")
+    void passwordHardcodeadaYaNoFunciona() throws Exception {
+        String anterior = credenciales(ADMIN, "Admin123!");
+        mockMvc.perform(post("/api/auth/login").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON).content(anterior))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("Credenciales incorrectas"))
+                .andExpect(content().string(not(containsString("devsecops-lab-secret"))));
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON).content(anterior))
+                .andExpect(status().isForbidden());
+    }
 
     // ------------------------------------------------------------------ Logs
 
+    @Test
+    @DisplayName("APP-15 El log no contiene la contraseña ni saltos de línea del usuario")
+    void logNoContienePasswordNiSaltos(CapturedOutput salida) throws Exception {
+        mockMvc.perform(post("/api/auth/login").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(credenciales("intruso\r\nFALSO admin", "ClaveDePrueba-XYZ")))
+                .andExpect(status().isUnauthorized());
+        assertThat(salida.getAll()).doesNotContain("ClaveDePrueba-XYZ");
+        assertThat(salida.getAll()).doesNotContain("\nFALSO admin");
+        assertThat(salida.getAll()).contains("intruso__FALSO admin");
+    }
 
     // ---------------------------------------------------------- Configuración
 
