@@ -14,7 +14,7 @@ se completan en la fase 6 (E2E); hasta entonces figuran como *pendiente fase 6*.
 - Ejecución posterior: pendiente fase 6 (run de CI tras la remediación)
 - Pull request: pendiente fase 6 (PR #1 `feature/lab3-ci-seguro` → `develop`)
 - Versión de Trivy: 0.74.0 (`aquasec/trivy:0.74.0`, por Docker); OWASP Dependency-Check 13.0.0 (NVD); CycloneDX Maven Plugin 2.9.3 (schema 1.6)
-- Fecha y hora de los análisis locales: 2026-10-04, 12:52 (antes) y 13:04 (después), America/La_Paz
+- Fecha y hora de los análisis locales: 2026-10-04, 13:23 (antes, regenerado desde un `git worktree` del commit `1a9980a`) y 13:18 (después, commit `89e8155`), America/La_Paz
 
 ## Hallazgo seleccionado
 
@@ -47,7 +47,7 @@ Resumen de Trivy sobre el SBOM (local):
    - Ningún umbral cambió: Trivy sigue sin `--ignore-unfixed`, DC sigue con `failBuildOnCVSS=7` y el gate con CVSS ≥ 7.0 / HIGH / CRITICAL.
 
 3. **¿Qué pruebas se ejecutaron para verificar compatibilidad?**
-   `mvn -B clean verify` con 21 pruebas en verde: las 2 originales (una ajustada a 401), 17 de `SecurityRemediationTests` y 2 de `ErroresSinStacktraceTests`. Además, arranque local de la aplicación y los comandos curl del README (CSRF, HTTP Basic, actuator, H2).
+   `mvn -B clean verify` con 24 pruebas en verde: las 2 originales (una ajustada a 401), 17 de `SecurityRemediationTests`, 2 de `ErroresSinStacktraceTests` y 3 de `config/RegistroUsuariosTests` (añadidas en la auditoría de ejecución, commit `8c7d9f7`). Además, arranque local de la aplicación y los comandos curl del README (CSRF, HTTP Basic, actuator, H2).
 
 4. **¿Qué evidencia muestra que desapareció el hallazgo seleccionado?**
    - `evidencias/locales/antes/sbom-trivy/sca-report.json` contiene CVE-2022-42889 y `evidencias/locales/despues/sbom-trivy/sca-report.json` no lo contiene (carpeta del laboratorio).
